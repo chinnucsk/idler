@@ -5,4 +5,4 @@
               {applications,[kernel,stdlib]},
               {mod,{idler_app,[]}},
               {env,[]},
-              {modules,[idler_app,idler_sup]}]}.
+              {modules,[connection,idler_app,idler_sup,ircmsg]}]}.
