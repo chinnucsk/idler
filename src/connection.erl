@@ -548,8 +548,8 @@ handle_numeric_reply(372, _Msg) ->
     ok;
 %% RPL_ENDOFMOTD
 %% we're using this to start the joining of channels.
-%% this needs to be converted to a callback function for the 
-%% bot implementers to use.
+%% Should get passed around as state, so we know what to join here.
+%% 
 handle_numeric_reply(376, _Msg) ->
     gen_server:cast(self(), {send_raw, <<"JOIN #erlounge">>}),
     ok;
