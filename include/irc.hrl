@@ -6,5 +6,5 @@
 -record(serverconfig, {name="unnamed",
                        hostname,
                        port=6667,
-                       nick="dingd1ding",
-                       channels=[]}).
+                       nick="dingd1ng",
+                       channels=["#erlounge","#yfl"]}).

@@ -14,24 +14,19 @@
 -define(COLON, 58).
 
 %% API
--export([start_link/4]).
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, 
          terminate/2, code_change/3]).
 
--export([send_msg/2, send_raw/2, handle/2, handle_numeric_reply/2]).
+-export([send_msg/2, send_raw/2, handle/1, handle_numeric_reply/2]).
 
 -define(SERVER, ?MODULE).
 
 -record(state, {socket, 
-                host, 
-                port=6667, 
-                username, 
-                callbackmodule, 
-                passthrough=false,
+                serverconfig=#serverconfig{},
                 connectionhelper=undefined
-%%              rawlogger=undefined
                }).
 
 %%%===================================================================
@@ -51,8 +46,8 @@ send_raw(Pid, Line) ->
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Module, Host, Port, UserName) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Module, Host, Port, UserName], []).
+start_link(#serverconfig{}=Config) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [Config], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -69,8 +64,8 @@ start_link(Module, Host, Port, UserName) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Module, Host, Port, UserName]) ->
-    {ok, #state{host=Host, port=Port, username=UserName, callbackmodule=Module}, 0}.
+init([#serverconfig{}=Cfg]) ->
+    {ok, #state{serverconfig=Cfg}, 0}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -130,41 +125,27 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(timeout, #state{host=Host, port=Port, username=UserName, callbackmodule=Module}) ->
-    {ok, Sock} = gen_tcp:connect(Host, Port, [binary, {packet, line}, {active, true}]), 
-    %% doing this in active mode could be bad for disconnection detection.
-    %% should redo this to active_once
+handle_info(timeout, #state{serverconfig=#serverconfig{hostname=Host, port=Port, nick=UserName}=ServerCfg}) ->
+    {ok, Sock} = gen_tcp:connect(Host, Port, [binary, {packet, line}, {active, once}]), 
     %% Do the IRC login
     gen_tcp:send(Sock, "NICK "++UserName), 
     gen_tcp:send(Sock, "\r\n"), 
     gen_tcp:send(Sock, "USER "++UserName++" "++UserName++" "++UserName++" "++UserName), 
     gen_tcp:send(Sock, "\r\n"), 
-    
-    %% spawn filelogger
-    %% LogPid = spawn(ltf, start, ["/home/gert/rawirclog.log"]),
-    %% io:format("filelogger at ~p~n",[LogPid]),
 
     %% spawn the helper process to keep pinging the server.
     %% needs to be its own module probably.
     ConHelpPid = spawn_link(connectionhelper, start, [Sock, self()]),
-    {noreply, #state{socket=Sock, host=Host, port=Port, username=UserName, callbackmodule=Module, connectionhelper=ConHelpPid}};
-handle_info({tcp, _S, Data}, #state{socket=Sock, callbackmodule=Mod, passthrough=PT}=State) ->
-%%    LP ! {data, Data},
+    inet:setopts(Sock, [{active, once}]),
+    {noreply, #state{socket=Sock, serverconfig=ServerCfg, connectionhelper=ConHelpPid}};
+handle_info({tcp, _S, Data}, #state{socket=Sock}=State) ->
     Msg = ircmsg:parse_line(Data), 
-    case PT of
-        true -> 
-            Response = Mod:handle_msg(Msg), 
-            case Response of
-                none -> ok;
-                _ -> send_ircmsg(Sock, Response)
-            end;
-        false ->
-            Response = ?MODULE:handle(Mod, Msg), 
-            case Response of
-                ok -> ok;
-                _ -> send_ircmsg(Sock, Response)
-            end
-    end, 
+    Response = ?MODULE:handle(Msg), 
+    case Response of
+        ok -> ok;
+        _ -> send_ircmsg(Sock, Response)
+    end,
+    inet:setopts(Sock, [{active, once}]),    
     {noreply, State};
 handle_info({tcp_closed, _Port}, State) ->
     io:format("DISCONNECTED!!!!"), 
@@ -219,18 +200,12 @@ send_rawmsg(Sock, Line) ->
 %%% This needs to be reworked to do the actual handling.
 %%%===================================================================
 
--spec handle(atom(), #ircmsg{}) -> ok.
-handle(_Mod, #ircmsg{command= <<"PING">>, tail=T}=_Msg) ->
+-spec handle(#ircmsg{}) -> ok.
+handle(#ircmsg{command= <<"PING">>, tail=T}=_Msg) ->
     ircmsg:create(<<>>, <<"PONG">>, [], T);
-handle(_Mod, #ircmsg{prefix=_P, command= <<"PONG">>, arguments=_A, tail=_T}=_Msg) ->
+handle(#ircmsg{prefix=_P, command= <<"PONG">>, arguments=_A, tail=_T}=_Msg) ->
     gen_server:cast(self(), got_pong);
-handle(Mod, #ircmsg{prefix=P, command= <<"JOIN">>, arguments=A, tail=_T}=Msg) ->
-    Mod:handle_join(hd(A), ircmsg:nick_from_prefix(P), Msg);
-handle(Mod, #ircmsg{prefix=P, command= <<"QUIT">>, arguments=_A, tail=_T}=Msg) ->
-    Mod:handle_quit(ircmsg:nick_from_prefix(P), Msg);
-handle(Mod, #ircmsg{prefix=P, command= <<"PRIVMSG">>, arguments=A, tail=_T}=Msg) ->
-    Mod:handle_privmsg(ircmsg:nick_from_prefix(P), hd(A), Msg);
-handle(_Mod, #ircmsg{prefix=_P, command=_C, arguments=_A, tail=_T}=Msg) ->
+handle(#ircmsg{prefix=_P, command=_C, arguments=_A, tail=_T}=Msg) ->
     case ircmsg:is_numeric(Msg) of
         {true, Nr} -> ?MODULE:handle_numeric_reply(Nr, Msg);
         {false, _} -> io:format("~p~n",[Msg]),
