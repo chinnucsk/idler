@@ -36,7 +36,10 @@ arguments(#ircmsg{arguments=A}) -> A.
 -spec tail(#ircmsg{}) -> binary().
 tail(#ircmsg{tail=T}) -> T.
 
-%% helper functions
+%% @doc
+%% Retrieves the nickname from an ircmsg{} record.
+%% Returns an empty binary when there is no nick to be retrieved.
+%% @end
 -spec nick(#ircmsg{}) -> binary().
 nick(Msg) ->
     nick_from_prefix(prefix(Msg)).
@@ -47,12 +50,18 @@ nick_from_prefix(<<>>) ->
 nick_from_prefix(P) ->
     hd(binary:split(P, <<"!">>)).
 
+%% @doc
+%% Displays the ircmsg{} on screen. Useful for debugging.
+%% @end
 -spec show(#ircmsg{}) -> ok.
 show(#ircmsg{command = <<"PRIVMSG">>, arguments=A, tail=T}=Msg) ->
     Channel = binary_to_list(hd(A)), 
     Nick = binary_to_list(nick(Msg)), 
     Content = binary_to_list(T), 
-    io:format("~s <~s> ~s", [Channel, Nick, Content]).
+    io:format("~s <~s> ~s~n", [Channel, Nick, Content]);
+show(#ircmsg{}=Msg) ->
+    io:format("~p~n",[Msg]).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%% Helper Functions
@@ -110,8 +119,12 @@ get_arguments_and_tail(AfterCmd) ->
     {Args, T} = lists:splitwith(fun(X) -> not(starts_with_colon(X)) end, AfterCmd), 
     {Args, assemble_tail(T)}.
 
--spec parse_line(Line :: binary()) -> #ircmsg{}.
-parse_line(Line) ->
+%% @doc
+%% Converts the binary line that comes from the server to an ircmsg{} record.
+%% @end
+-spec parse_line(RawLine :: binary()) -> #ircmsg{}.
+parse_line(RawLine) ->
+    Line = binary:replace(RawLine, <<"\r\n">>, <<>> ),
     Words = words_in_line(Line), 
     {P, Rest1} = get_prefix(Words), 
     {C, Rest2} = next_word(Rest1), 
@@ -121,7 +134,9 @@ parse_line(Line) ->
         true -> convert_ctcp(Msg);
         _ -> Msg
     end.
-
+%% @doc
+%% Checks whether the ircmsg{} is a CTCP message.
+%% @end
 -spec is_ctcp(#ircmsg{}) -> boolean().
 is_ctcp(#ircmsg{tail = <<>>}) ->
     false;
@@ -134,7 +149,9 @@ strip_tailwraps(B) ->
     TailSize = byte_size(B), 
     binary_part(B, 1, TailSize-2).
 
+%% @doc
 %% extremely basic CTCP parsing
+%% @end
 -spec convert_ctcp(#ircmsg{}) -> #ircmsg{}.
 convert_ctcp(#ircmsg{command = <<"NOTICE">>, tail=T}=Msg) ->
     Msg#ircmsg{command = <<"CTCP_REPLY">>, tail = strip_tailwraps(T)};
@@ -142,7 +159,7 @@ convert_ctcp(#ircmsg{command = <<"PRIVMSG">>, tail=T}=Msg) ->
     Msg#ircmsg{command = <<"CTCP">>, tail = strip_tailwraps(T)}.
 
 %% @doc
-%% A 'packet' is just a list of lines. But since that's what is usually received on the socket...
+%% A 'packet' is just a list of lines. Run parse_line/1 on all of them.
 %% @end
 -spec parse_packet(Packet :: binary()) -> [ [tuple()] ].
 parse_packet(Packet) ->
@@ -150,6 +167,9 @@ parse_packet(Packet) ->
 
 %%% ircmsg to server %%%
 
+%% @doc
+%% Converts and ircmsg{} back to a binary line so it can be sent to the server.
+%% @end
 -spec to_line(Msg :: #ircmsg{}) -> binary().
 to_line(#ircmsg{prefix=P, command=C, arguments=A, tail=T}=_Msg) ->
     Prefix =
@@ -170,6 +190,9 @@ to_line(#ircmsg{prefix=P, command=C, arguments=A, tail=T}=_Msg) ->
         end, 
     iolist_to_binary([Prefix, Cmd, [ [<<" ">>, X] || X <- A ], Tail]).
 
+%% @doc
+%% Returns {true, integer()} when the ircmsg{} is a numeric reply from the server.
+%% @end
 -spec is_numeric(Msg :: #ircmsg{}) -> { true | false, integer() }.
 is_numeric(#ircmsg{command=C}) ->
     Cmd = binary:bin_to_list(C), 

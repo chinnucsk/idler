@@ -43,7 +43,7 @@ send_raw(Pid, Line) ->
 %% @doc
 %% Starts the server
 %%
-%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
+%% @spec start_link(#ircmsg{}) -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
 start_link(#serverconfig{}=Config) ->
@@ -208,8 +208,7 @@ handle(#ircmsg{prefix=_P, command= <<"PONG">>, arguments=_A, tail=_T}=_Msg) ->
 handle(#ircmsg{prefix=_P, command=_C, arguments=_A, tail=_T}=Msg) ->
     case ircmsg:is_numeric(Msg) of
         {true, Nr} -> ?MODULE:handle_numeric_reply(Nr, Msg);
-        {false, _} -> io:format("~p~n",[Msg]),
-                      ok
+        {false, _} -> ircmsg:show(Msg)
     end.
     
 %%%===================================================================
