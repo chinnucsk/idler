@@ -168,7 +168,7 @@ parse_packet(Packet) ->
 %%% ircmsg to server %%%
 
 %% @doc
-%% Converts and ircmsg{} back to a binary line so it can be sent to the server.
+%% Converts an ircmsg{} back to a binary line so it can be sent to the server.
 %% @end
 -spec to_line(Msg :: #ircmsg{}) -> binary().
 to_line(#ircmsg{prefix=P, command=C, arguments=A, tail=T}=_Msg) ->

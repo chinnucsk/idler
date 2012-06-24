@@ -62,8 +62,8 @@ init([]) ->
     
     Cfgs = config:load_config(),
     
-    Children = [ {Cfg#serverconfig.name, {connection, start_link, [Cfg]}, Restart, Shutdown, Type, [connection]} || Cfg <- Cfgs ],
-    
+    Children = [ {list_to_atom(Cfg#serverconfig.name), {connection, start_link, [Cfg]}, Restart, Shutdown, Type, [connection]} || Cfg <- Cfgs ],
+    io:format("~p~n",[Children]),
     {ok, {SupFlags, Children}}.
 
 %%%===================================================================

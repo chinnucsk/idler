@@ -20,7 +20,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, 
          terminate/2, code_change/3]).
 
--export([send_msg/2, send_raw/2, handle/1, handle_numeric_reply/2]).
+-export([send_msg/2, send_raw/2, handle/2, handle_numeric_reply/3]).
 
 -define(SERVER, ?MODULE).
 
@@ -47,7 +47,7 @@ send_raw(Pid, Line) ->
 %% @end
 %%--------------------------------------------------------------------
 start_link(#serverconfig{}=Config) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Config], []).
+    gen_server:start_link({local, list_to_atom(Config#serverconfig.name)}, ?MODULE, [Config], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -65,6 +65,8 @@ start_link(#serverconfig{}=Config) ->
 %% @end
 %%--------------------------------------------------------------------
 init([#serverconfig{}=Cfg]) ->
+    %% construct the botstate here.
+    
     {ok, #state{serverconfig=Cfg}, 0}.
 
 %%--------------------------------------------------------------------
@@ -140,13 +142,13 @@ handle_info(timeout, #state{serverconfig=#serverconfig{hostname=Host, port=Port,
     {noreply, #state{socket=Sock, serverconfig=ServerCfg, connectionhelper=ConHelpPid}};
 handle_info({tcp, _S, Data}, #state{socket=Sock}=State) ->
     Msg = ircmsg:parse_line(Data), 
-    Response = ?MODULE:handle(Msg), 
+    {Response, NewState} = ?MODULE:handle(Msg, State),
     case Response of
         ok -> ok;
         _ -> send_ircmsg(Sock, Response)
     end,
     inet:setopts(Sock, [{active, once}]),    
-    {noreply, State};
+    {noreply, NewState};
 handle_info({tcp_closed, _Port}, State) ->
     io:format("DISCONNECTED!!!!"), 
     {stop, disconnected, State};
@@ -200,15 +202,17 @@ send_rawmsg(Sock, Line) ->
 %%% This needs to be reworked to do the actual handling.
 %%%===================================================================
 
--spec handle(#ircmsg{}) -> ok.
-handle(#ircmsg{command= <<"PING">>, tail=T}=_Msg) ->
-    ircmsg:create(<<>>, <<"PONG">>, [], T);
-handle(#ircmsg{prefix=_P, command= <<"PONG">>, arguments=_A, tail=_T}=_Msg) ->
-    gen_server:cast(self(), got_pong);
-handle(#ircmsg{prefix=_P, command=_C, arguments=_A, tail=_T}=Msg) ->
+-spec handle(#ircmsg{}, #state{}) -> {#ircmsg{}, #state{}} | {ok, #state{}}.
+handle(#ircmsg{command= <<"PING">>, tail=T}=_Msg, #state{}=State) ->
+    {ircmsg:create(<<>>, <<"PONG">>, [], T), State};
+handle(#ircmsg{prefix=_P, command= <<"PONG">>, arguments=_A, tail=_T}=_Msg, #state{}=State) ->
+    gen_server:cast(self(), got_pong),
+    {ok, State};
+handle(#ircmsg{prefix=_P, command=_C, arguments=_A, tail=_T}=Msg, #state{}=State) ->
     case ircmsg:is_numeric(Msg) of
-        {true, Nr} -> ?MODULE:handle_numeric_reply(Nr, Msg);
-        {false, _} -> ircmsg:show(Msg)
+        {true, Nr} -> ?MODULE:handle_numeric_reply(Nr, Msg, State);
+        {false, _} -> ircmsg:show(Msg),
+                      {ok, State}
     end.
     
 %%%===================================================================
@@ -220,35 +224,45 @@ handle(#ircmsg{prefix=_P, command=_C, arguments=_A, tail=_T}=Msg) ->
 %%% to 399.
 %%%===================================================================
 
--spec handle_numeric_reply(Nr :: integer(), Msg :: #ircmsg{}) -> #ircmsg{} | ok.
-
+-spec handle_numeric_reply(Nr :: integer(), Msg :: #ircmsg{}, #state{}) -> {#ircmsg{}, #state{}} | {ok, #state{}}.
+%% @doc
 %%% The server sends Replies 001 to 004 to a user upon
 %%% successful registration.
 %% RPL_WELCOME
-handle_numeric_reply(001, _Msg) -> 
+%% @end
+handle_numeric_reply(001, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_WELCOME not implemented.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_
-handle_numeric_reply(002, _Msg) ->
+%% @end
+handle_numeric_reply(002, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ not implemented.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_CREATED
-handle_numeric_reply(003, _Msg) ->
+%% @end
+handle_numeric_reply(003, _Msg, #state{}=State) ->
     io:format("Reply for RPL_CREATED no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_MYINFO
-handle_numeric_reply(004, _Msg) ->
+%% @end
+handle_numeric_reply(004, _Msg, #state{}=State) ->
     io:format("Reply for RPL_MYINFO no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% Sent by the server to a user to suggest an alternative
 %% server.  This is often used when the connection is
 %% refused because the server is already full.
 
 %% RPL_BOUNCE
-handle_numeric_reply(005, _Msg) ->
+%% @end
+handle_numeric_reply(005, _Msg, #state{}=State) ->
     io:format("Reply for RPL_BOUNCE not implemented.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - Reply format used by USERHOST to list replies to
 %%   the query list.  The reply string is composed as
@@ -262,17 +276,21 @@ handle_numeric_reply(005, _Msg) ->
 %%   respectively.
 
 %% RPL_USERHOST
-handle_numeric_reply(302, _Msg) ->
+%% @end
+handle_numeric_reply(302, _Msg, #state{}=State) ->
     io:format("Reply for RPL_USERHOST not implemented.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - Reply format used by ISON to list replies to the
 %%   query list.
 
 %% RPL_ISON
-handle_numeric_reply(303, _Msg) ->
+%% @end
+handle_numeric_reply(303, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ISON not implemented.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - These replies are used with the AWAY command (if
 %% allowed).  RPL_AWAY is sent to any client sending a
@@ -282,19 +300,25 @@ handle_numeric_reply(303, _Msg) ->
 %% client removes and sets an AWAY message.
 
 %% RPL_AWAY
-handle_numeric_reply(301, _Msg) ->
+%% @end
+handle_numeric_reply(301, _Msg, #state{}=State) ->
     io:format("Reply for RPL_AWAY not implemented.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_UNAWAY
-handle_numeric_reply(305, _Msg) ->
+%% @end
+handle_numeric_reply(305, _Msg, #state{}=State) ->
     io:format("Reply for RPL_UNAWAY no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_NOWAWAY
-handle_numeric_reply(306, _Msg) ->
+%% @end
+handle_numeric_reply(306, _Msg, #state{}=State) ->
     io:format("Reply for RPL_NOWAWAY no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - Replies 311 - 313, 317 - 319 are all replies
 %% generated in response to a WHOIS message.  Given that
@@ -312,29 +336,41 @@ handle_numeric_reply(306, _Msg) ->
 %% the end of processing a WHOIS message.
 
 %% RPL_WHOISUSER
-handle_numeric_reply(311, _Msg) ->
+%% @end
+handle_numeric_reply(311, _Msg, #state{}=State) ->
     io:format("Reply for RPL_WHOISUSER no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_WHOISSERVER
-handle_numeric_reply(312, _Msg) ->
+%% @end
+handle_numeric_reply(312, _Msg, #state{}=State) ->
     io:format("Reply for RPL_WHOISSERVER no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_WHOISOPERATOR
-handle_numeric_reply(313, _Msg) ->
+%% @end
+handle_numeric_reply(313, _Msg, #state{}=State) ->
     io:format("Reply for RPL_WHOISOPERATOR no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_WHOISIDLE
-handle_numeric_reply(317, _Msg) ->
+%% @end
+handle_numeric_reply(317, _Msg, #state{}=State) ->
     io:format("Reply for RPL_WHOISIDLE no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFWHOIS
-handle_numeric_reply(318, _Msg) ->
+%% @end
+handle_numeric_reply(318, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFWHOIS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_WHOISCHANNELS
-handle_numeric_reply(319, _Msg) ->
+%% @end
+handle_numeric_reply(319, _Msg, #state{}=State) ->
     io:format("Reply for RPL_WHOISCHANNELS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - When replying to a WHOWAS message, a server MUST use
 %% the replies RPL_WHOWASUSER, RPL_WHOISSERVER or
@@ -344,13 +380,17 @@ handle_numeric_reply(319, _Msg) ->
 %% and it was an error).
 
 %% RPL_WHOWASUSER
-handle_numeric_reply(314, _Msg) ->
+%% @end
+handle_numeric_reply(314, _Msg, #state{}=State) ->
     io:format("Reply for RPL_WHOWASUSER no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFWHOWAS
-handle_numeric_reply(369, _Msg) ->
+%% @end
+handle_numeric_reply(369, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFWHOWAS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - Replies RPL_LIST, RPL_LISTEND mark the actual replies
 %% with data and end of the server's response to a LIST
@@ -358,21 +398,29 @@ handle_numeric_reply(369, _Msg) ->
 %% only the end reply MUST be sent.
 
 %% RPL_LIST
-handle_numeric_reply(322, _Msg) ->
+%% @end
+handle_numeric_reply(322, _Msg, #state{}=State) ->
     io:format("Reply for RPL_LIST no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_LISTEND
-handle_numeric_reply(323, _Msg) ->
+%% @end
+handle_numeric_reply(323, _Msg, #state{}=State) ->
     io:format("Reply for RPL_LISTEND no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_UNIQOPIS
-handle_numeric_reply(325, _Msg) ->
+%% @end
+handle_numeric_reply(325, _Msg, #state{}=State) ->
     io:format("Reply for RPL_UNIQOPIS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_CHANNELMODEIS
-handle_numeric_reply(324, _Msg) ->
+%% @end
+handle_numeric_reply(324, _Msg, #state{}=State) ->
     io:format("Reply for RPL_CHANNELMODEIS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - When sending a TOPIC message to determine the
 %% channel topic, one of two replies is sent.  If
@@ -380,30 +428,38 @@ handle_numeric_reply(324, _Msg) ->
 %% RPL_NOTOPIC.
 
 %% RPL_NOTOPIC
-handle_numeric_reply(331, _Msg) ->
+%% @end
+handle_numeric_reply(331, _Msg, #state{}=State) ->
     io:format("Reply for RPL_NOTOPIC no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_TOPIC
-handle_numeric_reply(332, _Msg) ->
+%% @end
+handle_numeric_reply(332, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TOPIC no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - Returned by the server to indicate that the
 %% attempted INVITE message was successful and is
 %% being passed onto the end client.
 
 %% RPL_INVITING
-handle_numeric_reply(341, _Msg) ->
+%% @end
+handle_numeric_reply(341, _Msg, #state{}=State) ->
     io:format("Reply for RPL_INVITING no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - Returned by a server answering a SUMMON message to
 %% indicate that it is summoning that user.
 
 %% RPL_SUMMONING
-handle_numeric_reply(342, _Msg) ->
+%% @end
+handle_numeric_reply(342, _Msg, #state{}=State) ->
     io:format("Reply for RPL_SUMMONING no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - When listing the 'invitations masks' for a given channel,
 %% a server is required to send the list back using the
@@ -413,13 +469,17 @@ handle_numeric_reply(342, _Msg) ->
 %% RPL_ENDOFINVITELIST MUST be sent.
 
 %% RPL_INVITELIST
-handle_numeric_reply(346, _Msg) ->
+%% @end
+handle_numeric_reply(346, _Msg, #state{}=State) ->
     io:format("Reply for RPL_INVITELIST no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFINVITELIST
-handle_numeric_reply(347, _Msg) ->
+%% @end
+handle_numeric_reply(347, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFINVITELIST no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - When listing the 'exception masks' for a given channel,
 %% a server is required to send the list back using the
@@ -429,13 +489,17 @@ handle_numeric_reply(347, _Msg) ->
 %% a RPL_ENDOFEXCEPTLIST MUST be sent.
 
 %% RPL_EXCEPTLIST
-handle_numeric_reply(348, _Msg) ->
+%% @end
+handle_numeric_reply(348, _Msg, #state{}=State) ->
     io:format("Reply for RPL_EXCEPTLIST no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFEXCEPTLIST
-handle_numeric_reply(349, _Msg) ->
+%% @end
+handle_numeric_reply(349, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFEXCEPTLIST no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - Reply by the server showing its version details.
 %% The <version> is the version of the software being
@@ -447,9 +511,11 @@ handle_numeric_reply(349, _Msg) ->
 %% the version or further version details.
 
 %% RPL_VERSION
-handle_numeric_reply(351, _Msg) ->
+%% @end
+handle_numeric_reply(351, _Msg, #state{}=State) ->
     io:format("Reply for RPL_VERSION no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - The RPL_WHOREPLY and RPL_ENDOFWHO pair are used
 %% to answer a WHO message.  The RPL_WHOREPLY is only
@@ -460,13 +526,17 @@ handle_numeric_reply(351, _Msg) ->
 %% the item.
 
 %% RPL_WHOREPLY
-handle_numeric_reply(352, _Msg) ->
+%% @end
+handle_numeric_reply(352, _Msg, #state{}=State) ->
     io:format("Reply for RPL_WHOREPLY no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFWHO
-handle_numeric_reply(315, _Msg) ->
+%% @end
+handle_numeric_reply(315, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFWHO no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - To reply to a NAMES message, a reply pair consisting
 %% of RPL_NAMREPLY and RPL_ENDOFNAMES is sent by the
@@ -479,26 +549,34 @@ handle_numeric_reply(315, _Msg) ->
 %% the end.        
 
 %% RPL_NAMREPLY
-handle_numeric_reply(353, _Msg) ->
+%% @end
+handle_numeric_reply(353, _Msg, #state{}=State) ->
     io:format("Reply for RPL_NAMREPLY no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFNAMES
-handle_numeric_reply(366, _Msg) ->
+%% @end
+handle_numeric_reply(366, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFNAMES no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - In replying to the LINKS message, a server MUST send
 %% replies back using the RPL_LINKS numeric and mark the
 %% end of the list using an RPL_ENDOFLINKS reply.
 
 %% RPL_LINKS
-handle_numeric_reply(364, _Msg) ->
+%% @end
+handle_numeric_reply(364, _Msg, #state{}=State) ->
     io:format("Reply for RPL_LINKS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFLINKS
-handle_numeric_reply(365, _Msg) ->
+%% @end
+handle_numeric_reply(365, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFLINKS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - When listing the active 'bans' for a given channel,
 %% a server is required to send the list back using the
@@ -508,13 +586,17 @@ handle_numeric_reply(365, _Msg) ->
 %% RPL_ENDOFBANLIST MUST be sent.
 
 %% RPL_BANLIST
-handle_numeric_reply(367, _Msg) ->
+%% @end
+handle_numeric_reply(367, _Msg, #state{}=State) ->
     io:format("Reply for RPL_BANLIST no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFBANLIST
-handle_numeric_reply(368, _Msg) ->
+%% @end
+handle_numeric_reply(368, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFBANLIST no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - A server responding to an INFO message is required to
 %% send all its 'info' in a series of RPL_INFO messages
@@ -522,13 +604,17 @@ handle_numeric_reply(368, _Msg) ->
 %% replies.
 
 %% RPL_INFO
-handle_numeric_reply(371, _Msg) ->
+%% @end
+handle_numeric_reply(371, _Msg, #state{}=State) ->
     io:format("Reply for RPL_INFO no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFINFO
-handle_numeric_reply(374, _Msg) ->
+%% @end
+handle_numeric_reply(374, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFINFO no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - When responding to the MOTD message and the MOTD file
 %% is found, the file is displayed line by line, with
@@ -538,46 +624,58 @@ handle_numeric_reply(374, _Msg) ->
 %% RPL_ENDOFMOTD (after).
 
 %% RPL_MOTDSTART
-handle_numeric_reply(375, _Msg) ->
+%% @end
+handle_numeric_reply(375, _Msg, #state{}=State) ->
     io:format("Reply for RPL_MOTDSTART no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_MOTD
-handle_numeric_reply(372, _Msg) ->
+%% @end
+handle_numeric_reply(372, _Msg, #state{}=State) ->
     io:format("Reply for RPL_MOTD no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFMOTD
 %% we're using this to start the joining of channels.
 %% Should get passed around as state, so we know what to join here.
 %% 
-handle_numeric_reply(376, _Msg) ->
-    gen_server:cast(self(), {send_raw, <<"JOIN #erlounge">>}),
-    ok;
+%% @end
+handle_numeric_reply(376, _Msg, #state{serverconfig=#serverconfig{channels=Channels}}=State) ->
+    [ gen_server:cast(self(), {send_raw, iolist_to_binary([<<"JOIN ">>, Channel])}) || Channel <- Channels ],
+    {ok, State};
+%% @doc
 
 %% - RPL_YOUREOPER is sent back to a client which has
 %% just successfully issued an OPER message and gained
 %% operator status.
 
 %% RPL_YOUREOPER
-handle_numeric_reply(381, _Msg) ->
+%% @end
+handle_numeric_reply(381, _Msg, #state{}=State) ->
     io:format("Reply for RPL_YOUREOPER no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - If the REHASH option is used and an operator sends
 %% a REHASH message, an RPL_REHASHING is sent back to
 %% the operator.
 
 %% RPL_REHASHING
-handle_numeric_reply(382, _Msg) ->
+%% @end
+handle_numeric_reply(382, _Msg, #state{}=State) ->
     io:format("Reply for RPL_REHASHING no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - Sent by the server to a service upon successful
 %% registration.
 
 %% RPL_YOURESERVICE
-handle_numeric_reply(383, _Msg) ->
+%% @end
+handle_numeric_reply(383, _Msg, #state{}=State) ->
     io:format("Reply for RPL_YOURESERVICE no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - When replying to the TIME message, a server MUST send
 %% the reply using the RPL_TIME format below.  The string
@@ -586,9 +684,11 @@ handle_numeric_reply(383, _Msg) ->
 %% time string.
 
 %% RPL_TIME
-handle_numeric_reply(391, _Msg) ->
+%% @end
+handle_numeric_reply(391, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TIME no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - If the USERS message is handled by a server, the
 %% replies RPL_USERSTART, RPL_USERS, RPL_ENDOFUSERS and
@@ -598,21 +698,29 @@ handle_numeric_reply(391, _Msg) ->
 %% RPL_ENDOFUSERS.
 
 %% RPL_USERSSTART
-handle_numeric_reply(392, _Msg) ->
+%% @end
+handle_numeric_reply(392, _Msg, #state{}=State) ->
     io:format("Reply for RPL_USERSSTART no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_USERS
-handle_numeric_reply(393, _Msg) ->
+%% @end
+handle_numeric_reply(393, _Msg, #state{}=State) ->
     io:format("Reply for RPL_USERS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ENDOFUSERS
-handle_numeric_reply(394, _Msg) ->
+%% @end
+handle_numeric_reply(394, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFUSERS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_NOUSERS
-handle_numeric_reply(395, _Msg) ->
+%% @end
+handle_numeric_reply(395, _Msg, #state{}=State) ->
     io:format("Reply for RPL_NOUSERS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - The RPL_TRACE* are all returned by the server in
 %% response to the TRACE message.  How many are
@@ -636,68 +744,94 @@ handle_numeric_reply(395, _Msg) ->
 %% RPL_TRACEEND is sent to indicate the end of the list.
 
 %% RPL_TRACELINK
-handle_numeric_reply(200, _Msg) -> 
+%% @end
+handle_numeric_reply(200, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACELINK no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_TRACECONNECTING
-handle_numeric_reply(201, _Msg) -> 
+%% @end
+handle_numeric_reply(201, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACECONNECTING no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACEHANDSHAKE
-handle_numeric_reply(202, _Msg) -> 
+%% @end
+handle_numeric_reply(202, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACEHANDSHAKE no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACEUNKNOWN
-handle_numeric_reply(203, _Msg) -> 
+%% @end
+handle_numeric_reply(203, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACEUNKNOWN no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACEOPERATOR
-handle_numeric_reply(204, _Msg) -> 
+%% @end
+handle_numeric_reply(204, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACEOPERATOR no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACEUSER
-handle_numeric_reply(205, _Msg) -> 
+%% @end
+handle_numeric_reply(205, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACEUSER no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACESERVER
-handle_numeric_reply(206, _Msg) -> 
+%% @end
+handle_numeric_reply(206, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACESERVER no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACESERVICE
-handle_numeric_reply(207, _Msg) -> 
+%% @end
+handle_numeric_reply(207, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACESERVICE no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACENEWTYPE
-handle_numeric_reply(208, _Msg) -> 
+%% @end
+handle_numeric_reply(208, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACENEWTYPE no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACECLASS
-handle_numeric_reply(209, _Msg) -> 
+%% @end
+handle_numeric_reply(209, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACECLASS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACERECONNECT
-handle_numeric_reply(210, _Msg) -> 
+%% @end
+handle_numeric_reply(210, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACERECONNECT no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACELOG
-handle_numeric_reply(261, _Msg) -> 
+%% @end
+handle_numeric_reply(261, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACELOG no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TRACEEND
-handle_numeric_reply(262, _Msg) -> 
+%% @end
+handle_numeric_reply(262, _Msg, #state{}=State) -> 
     io:format("Reply for RPL_TRACEEND no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% - reports statistics on a connection.  <linkname> identifies the particular connection,
 %% <sendq> is the amount of data that is queued and waiting to be
@@ -708,49 +842,63 @@ handle_numeric_reply(262, _Msg) ->
 
 %% RPL_STATSLINKINFO
 %% "<linkname> <sendq> <sent messages> <sent Kbytes> <received messages> <received Kbytes> <time open>"
-handle_numeric_reply(211, _Msg) ->
+%% @end
+handle_numeric_reply(211, _Msg, #state{}=State) ->
     io:format("Reply for RPL_STATSLINKINFO no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_STATSCOMMANDS
 %% "<command> <count> <byte count> <remote count>"
 %% reports statistics on commands usage.
-handle_numeric_reply(212, _Msg) ->
+%% @end
+handle_numeric_reply(212, _Msg, #state{}=State) ->
     io:format("Reply for RPL_STATSCOMMANDS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_ENDOFSTATS
 %% "<stats letter> :End of STATS report"
-handle_numeric_reply(219, _Msg) ->
+%% @end
+handle_numeric_reply(219, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ENDOFSTATS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_STATSUPTIME
 %% ":Server Up %d days %d:%02d:%02d"
 %% Reports the server uptime.
-handle_numeric_reply(242, _Msg) ->
+%% @end
+handle_numeric_reply(242, _Msg, #state{}=State) ->
     io:format("Reply for RPL_STATSUPTIME no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_STATSOLINE
 %% "O <hostmask> * <name>"
 %% reports the allowed hosts from where user may become IRC operators.
-handle_numeric_reply(243, _Msg) ->
+%% @end
+handle_numeric_reply(243, _Msg, #state{}=State) ->
     io:format("Reply for RPL_STATSOLINE no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_UMODEIS
 %% "<user mode string>"
 %% To answer a query about a client's own mode, RPL_UMODEIS is sent back.
-handle_numeric_reply(221, _Msg) ->
+%% @end
+handle_numeric_reply(221, _Msg, #state{}=State) ->
     io:format("Reply for RPL_UMODEIS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_SERVLIST
 %% "<name> <server> <mask> <type> <hopcount> <info>"
-handle_numeric_reply(234, _Msg) ->
+%% @end
+handle_numeric_reply(234, _Msg, #state{}=State) ->
     io:format("Reply for RPL_SERVLIST no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_SERVLISTEND
 %% "<mask> <type> :End of service listing"
@@ -760,9 +908,11 @@ handle_numeric_reply(234, _Msg) ->
 %% RPL_SERVLIST is sent for each service.  After the
 %% services have been listed (or if none present) a
 %% RPL_SERVLISTEND MUST be sent.
-handle_numeric_reply(235, _Msg) ->
+%% @end
+handle_numeric_reply(235, _Msg, #state{}=State) ->
     io:format("Reply for RPL_SERVLISTEND no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% In processing an LUSERS message, the server
 %% sends a set of replies from RPL_LUSERCLIENT,
@@ -775,33 +925,43 @@ handle_numeric_reply(235, _Msg) ->
 
 %% RPL_LUSERCLIENT
 %% ":There are <integer> users and <integer> services on <integer> servers"
-handle_numeric_reply(251, _Msg) ->
+%% @end
+handle_numeric_reply(251, _Msg, #state{}=State) ->
     io:format("Reply for RPL_LUSERCLIENT no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_LUSEROP
 %% "<integer> :operator(s) online"
-handle_numeric_reply(252, _Msg) ->
+%% @end
+handle_numeric_reply(252, _Msg, #state{}=State) ->
     io:format("Reply for RPL_LUSEROP no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_LUSERUNKNOWN
 %% "<integer> :unknown connection(s)"
-handle_numeric_reply(253, _Msg) ->
+%% @end
+handle_numeric_reply(253, _Msg, #state{}=State) ->
     io:format("Reply for RPL_LUSERUNKNOWN no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_LUSERCHANNELS
 %% "<integer> :channels formed"
-handle_numeric_reply(254, _Msg) ->
+%% @end
+handle_numeric_reply(254, _Msg, #state{}=State) ->
     io:format("Reply for RPL_LUSERCHANNELS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_LUSERME
 %% ":I have <integer> clients and <integer> servers"
-handle_numeric_reply(255, _Msg) ->
+%% @end
+handle_numeric_reply(255, _Msg, #state{}=State) ->
     io:format("Reply for RPL_LUSERME no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% When replying to an ADMIN message,  a server
 %% is expected to use replies RPL_ADMINME
@@ -816,26 +976,34 @@ handle_numeric_reply(255, _Msg) ->
 
 %% RPL_ADMINME
 %% "<server> :Administrative info"
-handle_numeric_reply(256, _Msg) ->
+%% @end
+handle_numeric_reply(256, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ADMINME no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_ADMINLOC1
 %% ":<admin info>"
-handle_numeric_reply(257, _Msg) ->
+%% @end
+handle_numeric_reply(257, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ADMINLOC1 no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_ADMINLOC2
 %% ":<admin info>"
-handle_numeric_reply(258, _Msg) ->
+%% @end
+handle_numeric_reply(258, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ADMINLOC2 no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 %% RPL_ADMINEMAIL
 %% ":<admin info>
-handle_numeric_reply(259, _Msg) ->
+%% @end
+handle_numeric_reply(259, _Msg, #state{}=State) ->
     io:format("Reply for RPL_ADMINEMAIL no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% When a server drops a command without processing it,
 %% it MUST use the reply RPL_TRYAGAIN to inform the
@@ -843,14 +1011,18 @@ handle_numeric_reply(259, _Msg) ->
 
 %% RPL_TRYAGAIN
 %% "<command> :Please wait a while and try again."
-handle_numeric_reply(263, _Msg) ->
+%% @end
+handle_numeric_reply(263, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRYAGAIN no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% RPL_TOPICWHOTIME
-handle_numeric_reply(333, _Msg) ->
+%% @end
+handle_numeric_reply(333, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TOPICWHOTIME no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 
 %%%%%%%%%%%%% ERROR REPLIES %%%%%%%%%%%%%%%%%%%%%%%%
@@ -859,24 +1031,30 @@ handle_numeric_reply(333, _Msg) ->
 %% command is currently unused.
 %% ERR_NOSUCHNICK
 %% "<nickname> :No such nick/channel"
-handle_numeric_reply(401, _Msg) ->
+%% @end
+handle_numeric_reply(401, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOSUCHNICK no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% Used to indicate the server name given currently
 %% does not exist.
 %% ERR_NOSUCHSERVER
 %% "<server name> :No such server"
-handle_numeric_reply(402, _Msg) ->
+%% @end
+handle_numeric_reply(402, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOSUCHSERVER no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOSUCHCHANNEL
 %% "<channel name> :No such channel"
 %% Used to indicate the given channel name is invalid.
-handle_numeric_reply(403, _Msg) ->
+%% @end
+handle_numeric_reply(403, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOSUCHCHANNEL no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_CANNOTSENDTOCHAN
 %% "<channel name> :Cannot send to channel"
@@ -885,27 +1063,33 @@ handle_numeric_reply(403, _Msg) ->
 %% a channel which has mode +m set or where the user is
 %% banned and is trying to send a PRIVMSG message to
 %% that channel.
-handle_numeric_reply(404, _Msg) ->
+%% @end
+handle_numeric_reply(404, _Msg, #state{}=State) ->
     io:format("Reply for ERR_CANNOTSENDTOCHAN no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_TOOMANYCHANNELS
 %% "<channel name> :You have joined too many channels"
 %% Sent to a user when they have joined the maximum
 %% number of allowed channels and they try to join                    
 %% another channel.
-handle_numeric_reply(405, _Msg) ->
+%% @end
+handle_numeric_reply(405, _Msg, #state{}=State) ->
     io:format("Reply for ERR_TOOMANYCHANNELS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 
 %% ERR_WASNOSUCHNICK
 %% "<nickname> :There was no such nickname"
 %% Returned by WHOWAS to indicate there is no history
 %% information for that nickname.
-handle_numeric_reply(406, _Msg) ->
+%% @end
+handle_numeric_reply(406, _Msg, #state{}=State) ->
     io:format("Reply for ERR_WASNOSUCHNICK no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_TOOMANYTARGETS
 %% "<target> :<error code> recipients. <abort message>"
@@ -917,30 +1101,38 @@ handle_numeric_reply(406, _Msg) ->
 %% Returned to a client which is attempting to JOIN a safe
 %% channel using the shortname when there are more than one
 %% such channel.
-handle_numeric_reply(407, _Msg) ->
+%% @end
+handle_numeric_reply(407, _Msg, #state{}=State) ->
     io:format("Reply for ERR_TOOMANYTARGETS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOSUCHSERVICE
 %% "<service name> :No such service"
 %% Returned to a client which is attempting to send a SQUERY
 %% to a service which does not exist.
-handle_numeric_reply(408, _Msg) ->
+%% @end
+handle_numeric_reply(408, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOSUCHSERVICE no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOORIGIN
 %% ":No origin specified"
 %% PING or PONG message missing the originator parameter.
-handle_numeric_reply(409, _Msg) ->
+%% @end
+handle_numeric_reply(409, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOORIGIN no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NORECIPIENT
 %% ":No recipient given (<command>)"
-handle_numeric_reply(411, _Msg) ->
+%% @end
+handle_numeric_reply(411, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NORECIPIENT no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 
 %% 412 - 415 are returned by PRIVMSG to indicate that
@@ -951,73 +1143,93 @@ handle_numeric_reply(411, _Msg) ->
 
 %% ERR_NOTEXTTOSEND
 %% ":No text to send"
-handle_numeric_reply(412, _Msg) ->
+%% @end
+handle_numeric_reply(412, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOTEXTTOSEND no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOTOPLEVEL
 %% "<mask> :No toplevel domain specified"
-handle_numeric_reply(413, _Msg) ->
+%% @end
+handle_numeric_reply(413, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOTOPLEVEL no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_WILDTOPLEVEL
 %% "<mask> :Wildcard in toplevel domain"
-handle_numeric_reply(414, _Msg) ->
+%% @end
+handle_numeric_reply(414, _Msg, #state{}=State) ->
     io:format("Reply for ERR_WILDTOPLEVEL no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_BADMASK
 %% "<mask> :Bad Server/host mask"
-handle_numeric_reply(415, _Msg) ->
+%% @end
+handle_numeric_reply(415, _Msg, #state{}=State) ->
     io:format("Reply for ERR_BADMASK no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_UNKNOWNCOMMAND
 %% "<command> :Unknown command"
-handle_numeric_reply(421, _Msg) ->
+%% @end
+handle_numeric_reply(421, _Msg, #state{}=State) ->
     io:format("Reply for ERR_UNKNOWNCOMMAND no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOMOTD
 %% ":MOTD File is missing"
-handle_numeric_reply(422, _Msg) ->
+%% @end
+handle_numeric_reply(422, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOMOTD no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOADMININFO
 %% "<server> :No administrative info available"
 %% Returned by a server in response to an ADMIN message
 %% when there is an error in finding the appropriate
 %% information.
-handle_numeric_reply(423, _Msg) ->
+%% @end
+handle_numeric_reply(423, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOADMININFO no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_FILEERROR
 %% ":File error doing <file op> on <file>"
 %% Generic error message used to report a failed file
 %% operation during the processing of a message.
-handle_numeric_reply(424, _Msg) ->
+%% @end
+handle_numeric_reply(424, _Msg, #state{}=State) ->
     io:format("Reply for ERR_FILEERROR no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NONICKNAMEGIVEN
 %% ":No nickname given"
 %% Returned when a nickname parameter expected for a
 %% command and isn't found.
-handle_numeric_reply(431, _Msg) ->
+%% @end
+handle_numeric_reply(431, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NONICKNAMEGIVEN no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_ERRONEUSNICKNAME
 %% "<nick> :Erroneous nickname"
 %% Returned after receiving a NICK message which contains
 %% characters which do not fall in the defined set.  See
 %% section 2.3.1 for details on valid nicknames.
-handle_numeric_reply(432, _Msg) ->
+%% @end
+handle_numeric_reply(432, _Msg, #state{}=State) ->
     io:format("Reply for ERR_ERRONEUSNICKNAME no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 
 %% ERR_NICKNAMEINUSE
@@ -1025,18 +1237,22 @@ handle_numeric_reply(432, _Msg) ->
 %% Returned when a NICK message is processed that results
 %% in an attempt to change to a currently existing
 %% nickname.
-handle_numeric_reply(433, _Msg) ->
+%% @end
+handle_numeric_reply(433, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NICKNAMEINUSE no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NICKCOLLISION
 %% "<nick> :Nickname collision KILL from <user>@<host>"
 %% Returned by a server to a client when it detects a
 %% nickname collision (registered of a NICK that
 %% already exists by another server).
-handle_numeric_reply(436, _Msg) ->
+%% @end
+handle_numeric_reply(436, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NICKCOLLISION no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_UNAVAILRESOURCE
 %% "<nick/channel> :Nick/channel is temporarily unavailable"
@@ -1045,86 +1261,106 @@ handle_numeric_reply(436, _Msg) ->
 %% Returned by a server to a user trying to change nickname
 %% when the desired nickname is blocked by the nick delay
 %% mechanism.
-handle_numeric_reply(437, _Msg) ->
+%% @end
+handle_numeric_reply(437, _Msg, #state{}=State) ->
     io:format("Reply for ERR_UNAVAILRESOURCE no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_USERNOTINCHANNEL
 %% "<nick> <channel> :They aren't on that channel"
 %% Returned by the server to indicate that the target
 %% user of the command is not on the given channel.
-handle_numeric_reply(441, _Msg) ->
+%% @end
+handle_numeric_reply(441, _Msg, #state{}=State) ->
     io:format("Reply for ERR_USERNOTINCHANNEL no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOTONCHANNEL
 %% "<channel> :You're not on that channel"
 %% Returned by the server whenever a client tries to
 %% perform a channel affecting command for which the
 %% client isn't a member.
-handle_numeric_reply(442, _Msg) ->
+%% @end
+handle_numeric_reply(442, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOTONCHANNEL no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_USERONCHANNEL
 %% "<user> <channel> :is already on channel"
 %% Returned when a client tries to invite a user to a
 %% channel they are already on.
-handle_numeric_reply(443, _Msg) ->
+%% @end
+handle_numeric_reply(443, _Msg, #state{}=State) ->
     io:format("Reply for ERR_USERONCHANNEL no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOLOGIN
 %% "<user> :User not logged in"
 %% Returned by the summon after a SUMMON command for a
 %% user was unable to be performed since they were not                             
 %% logged in.
-handle_numeric_reply(444, _Msg) ->
+%% @end
+handle_numeric_reply(444, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOLOGIN no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_SUMMONDISABLED
 %% ":SUMMON has been disabled"
 %% Returned as a response to the SUMMON command.  MUST be
 %% returned by any server which doesn't implement it.
-handle_numeric_reply(445, _Msg) ->
+%% @end
+handle_numeric_reply(445, _Msg, #state{}=State) ->
     io:format("Reply for ERR_SUMMONDISABLED no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_USERSDISABLED
 %% ":USERS has been disabled"
 %% Returned as a response to the USERS command.  MUST be
 %% returned by any server which does not implement it.
-handle_numeric_reply(446, _Msg) ->
+%% @end
+handle_numeric_reply(446, _Msg, #state{}=State) ->
     io:format("Reply for ERR_USERSDISABLED no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOTREGISTERED
 %% ":You have not registered"
 %% Returned by the server to indicate that the client
 %% MUST be registered before the server will allow it
 %% to be parsed in detail.
-handle_numeric_reply(451, _Msg) ->
+%% @end
+handle_numeric_reply(451, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOTREGISTERED no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NEEDMOREPARAMS
 %% "<command> :Not enough parameters"
 %% Returned by the server by numerous commands to
 %% indicate to the client that it didn't supply enough
 %% parameters.
-handle_numeric_reply(461, _Msg) ->
+%% @end
+handle_numeric_reply(461, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NEEDMOREPARAMS no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_ALREADYREGISTRED
 %% ":Unauthorized command (already registered)"
 %% Returned by the server to any link which tries to
 %% change part of the registered details (such as
 %% password or user details from second USER message).
-handle_numeric_reply(462, _Msg) ->
+%% @end
+handle_numeric_reply(462, _Msg, #state{}=State) ->
     io:format("Reply for ERR_ALREADYREGISTRED no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOPERMFORHOST
 %% ":Your host isn't among the privileged"
@@ -1132,97 +1368,125 @@ handle_numeric_reply(462, _Msg) ->
 %% a server which does not been setup to allow
 %% connections from the host the attempted connection
 %% is tried.
-handle_numeric_reply(463, _Msg) ->
+%% @end
+handle_numeric_reply(463, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOPERMFORHOST no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_PASSWDMISMATCH
 %% ":Password incorrect"
 %% Returned to indicate a failed attempt at registering
 %% a connection for which a password was required and
 %% was either not given or incorrect.
-handle_numeric_reply(464, _Msg) ->
+%% @end
+handle_numeric_reply(464, _Msg, #state{}=State) ->
     io:format("Reply for ERR_PASSWDMISMATCH no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_YOUREBANNEDCREEP
 %% ":You are banned from this server"
 %% Returned after an attempt to connect and register
 %% yourself with a server which has been setup to
 %% explicitly deny connections to you.
-handle_numeric_reply(465, _Msg) ->
+%% @end
+handle_numeric_reply(465, _Msg, #state{}=State) ->
     io:format("Reply for ERR_YOUREBANNEDCREEP no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_YOUWILLBEBANNED
 %% Sent by a server to a user to inform that access to the
 %% server will soon be denied.
-handle_numeric_reply(466, _Msg) ->
+%% @end
+handle_numeric_reply(466, _Msg, #state{}=State) ->
     io:format("Reply for ERR_YOUWILLBEBANNED no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_KEYSET
 %% "<channel> :Channel key already set"
-handle_numeric_reply(467, _Msg) ->
+%% @end
+handle_numeric_reply(467, _Msg, #state{}=State) ->
     io:format("Reply for ERR_KEYSET no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_CHANNELISFULL
 %% "<channel> :Cannot join channel (+l)"
-handle_numeric_reply(471, _Msg) ->
+%% @end
+handle_numeric_reply(471, _Msg, #state{}=State) ->
     io:format("Reply for ERR_CHANNELISFULL no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_UNKNOWNMODE
 %% "<char> :is unknown mode char to me for <channel>"
-handle_numeric_reply(472, _Msg) ->
+%% @end
+handle_numeric_reply(472, _Msg, #state{}=State) ->
     io:format("Reply for ERR_UNKNOWNMODE no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_INVITEONLYCHAN
 %% "<channel> :Cannot join channel (+i)"
-handle_numeric_reply(473, _Msg) ->
+%% @end
+handle_numeric_reply(473, _Msg, #state{}=State) ->
     io:format("Reply for ERR_INVITEONLYCHAN no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_BANNEDFROMCHAN
 %% "<channel> :Cannot join channel (+b)"
-handle_numeric_reply(474, _Msg) ->
+%% @end
+handle_numeric_reply(474, _Msg, #state{}=State) ->
     io:format("Reply for ERR_BANNEDFROMCHAN no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_BADCHANNELKEY
 %% "<channel> :Cannot join channel (+k)"
-handle_numeric_reply(475, _Msg) ->
+%% @end
+handle_numeric_reply(475, _Msg, #state{}=State) ->
     io:format("Reply for ERR_BADCHANNELKEY no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_BADCHANMASK
 %% "<channel> :Bad Channel Mask"
-handle_numeric_reply(476, _Msg) ->
+%% @end
+handle_numeric_reply(476, _Msg, #state{}=State) ->
     io:format("Reply for ERR_BADCHANMASK no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOCHANMODES
 %% "<channel> :Channel doesn't support modes"
-handle_numeric_reply(477, _Msg) ->
+%% @end
+handle_numeric_reply(477, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOCHANMODES no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_BANLISTFULL
 %% "<channel> <char> :Channel list is full"
-handle_numeric_reply(478, _Msg) ->
+%% @end
+handle_numeric_reply(478, _Msg, #state{}=State) ->
     io:format("Reply for ERR_BANLISTFULL no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOPRIVILEGES
 %% ":Permission Denied- You're not an IRC operator"
 %% Any command requiring operator privileges to operate
 %% MUST return this error to indicate the attempt was
 %% unsuccessful.
-handle_numeric_reply(481, _Msg) ->
+%% @end
+handle_numeric_reply(481, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOPRIVILEGES no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_CHANOPRIVSNEEDED
 %% "<channel> :You're not channel operator"
@@ -1230,35 +1494,43 @@ handle_numeric_reply(481, _Msg) ->
 %% MODE messages) MUST return this error if the client
 %% making the attempt is not a chanop on the specified
 %% channel.
-handle_numeric_reply(482, _Msg) ->
+%% @end
+handle_numeric_reply(482, _Msg, #state{}=State) ->
     io:format("Reply for ERR_CHANOPRIVSNEEDED no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_CANTKILLSERVER
 %% ":You can't kill a server!"
 %% Any attempts to use the KILL command on a server
 %% are to be refused and this error returned directly
 %% to the client.
-handle_numeric_reply(483, _Msg) ->
+%% @end
+handle_numeric_reply(483, _Msg, #state{}=State) ->
     io:format("Reply for ERR_CANTKILLSERVER no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_RESTRICTED
 %% ":Your connection is restricted!"
 %% Sent by the server to a user upon connection to indicate
 %% the restricted nature of the connection (user mode "+r").
-handle_numeric_reply(484, _Msg) ->
+%% @end
+handle_numeric_reply(484, _Msg, #state{}=State) ->
     io:format("Reply for ERR_RESTRICTED no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_UNIQOPPRIVSNEEDED
 %% ":You're not the original channel operator"
 %% Any MODE requiring "channel creator" privileges MUST
 %% return this error if the client making the attempt is not
 %% a chanop on the specified channel.
-handle_numeric_reply(485, _Msg) ->
+%% @end
+handle_numeric_reply(485, _Msg, #state{}=State) ->
     io:format("Reply for ERR_UNIQOPPRIVSNEEDED no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_NOOPERHOST
 %% ":No O-lines for your host"
@@ -1266,28 +1538,35 @@ handle_numeric_reply(485, _Msg) ->
 %% not been configured to allow connections from the
 %% client's host as an operator, this error MUST be
 %% returned.
-handle_numeric_reply(491, _Msg) ->
+%% @end
+handle_numeric_reply(491, _Msg, #state{}=State) ->
     io:format("Reply for ERR_NOOPERHOST no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_UMODEUNKNOWNFLAG
 %% ":Unknown MODE flag"
 %% Returned by the server to indicate that a MODE
 %% message was sent with a nickname parameter and that
 %% the a mode flag sent was not recognized.
-handle_numeric_reply(501, _Msg) ->
+%% @end
+handle_numeric_reply(501, _Msg, #state{}=State) ->
     io:format("Reply for ERR_UMODEUNKNOWNFLAG no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
 
 %% ERR_USERSDONTMATCH
 %% ":Cannot change mode for other users"
 %% Error sent to any user trying to view or change the
 %% user mode for a user other than themselves.
-handle_numeric_reply(502, _Msg) ->
+%% @end
+handle_numeric_reply(502, _Msg, #state{}=State) ->
     io:format("Reply for ERR_USERSDONTMATCH no implemented yet.~n~p~n", [_Msg]),
-    ok;
+    {ok, State};
+%% @doc
+%% Unknown numeric reply.
+%% @end
+handle_numeric_reply(Nr, Msg, #state{}=State) ->
+    io:format("Unknown numeric reply: ~p: ~p ~n",[Nr, Msg]),
+    {ok, State}.
 
-handle_numeric_reply(Nr, Msg) ->
-    io:format("Unknown numeric reply: ~p: ~p ~n",[Nr, Msg]).
-%% 
-%% 
