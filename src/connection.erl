@@ -200,6 +200,10 @@ send_rawmsg(Sock, Line) ->
 %%%===================================================================
 %%% Main dispatcher
 %%% This needs to be reworked to do the actual handling.
+%%% Could define a series of modules that implement a parsing behaviour
+%%% Returning a new #ircmsg{} on success.
+%%% Could use the introspection tools to check if the module implements
+%%% the behaviour.. Too much?
 %%%===================================================================
 
 -spec handle(#ircmsg{}, #state{}) -> {#ircmsg{}, #state{}} | {ok, #state{}}.
