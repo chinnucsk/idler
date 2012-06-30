@@ -17,8 +17,9 @@ handle_msg(#ircmsg{tail = <<"not">> }=Msg) ->
     case Nick of
         <<"Erlang">> -> 
             connection:send_msg(self(), 
-                                ircmsg:create(<<>>,<<"PRIVMSG">>,Args,<<"You sure?">>));
-        _ -> ok
+                                ircmsg:create(<<>>,<<"PRIVMSG">>,Args,<<"But it is!">>));
+        _ -> connection:send_msg(self(),
+                                 ircmsg:create(<<>>,<<"PRIVMSG">>,Args,<<"You sure?">>))
     end;
 handle_msg(_) -> ok.
 
