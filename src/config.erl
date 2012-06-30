@@ -8,12 +8,12 @@
 -module(config).
 -include("../include/irc.hrl").
 
--compile(export_all).
+-export([load_config/0]).
 
 
 load_config() ->
     PrivDir = code:lib_dir(idler, priv),
     {ok, CfgTerms, _} = file:path_consult([PrivDir], "idler.cfg"),
-    [ #serverconfig{name=Name, hostname=HostName, port=Port, nick=Nick, channels=Channels}
-                    || {server, Name, HostName, Port, Nick, Channels} <- CfgTerms ].
+    [ #serverconfig{name=Name, hostname=HostName, port=Port, nick=Nick, channels=Channels, modules=Modules}
+                    || {server, Name, HostName, Port, Nick, Channels, Modules} <- CfgTerms ].
 

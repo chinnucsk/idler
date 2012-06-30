@@ -66,7 +66,6 @@ start_link(#serverconfig{}=Config) ->
 %%--------------------------------------------------------------------
 init([#serverconfig{}=Cfg]) ->
     %% construct the botstate here.
-    
     {ok, #state{serverconfig=Cfg}, 0}.
 
 %%--------------------------------------------------------------------
@@ -112,7 +111,7 @@ handle_cast(got_pong, #state{connectionhelper=C}=State) ->
     C ! pong,
     {noreply, State};
 handle_cast(no_pong, State) ->
-    io:format("Disconnected apparently... letting the bot crash.."),
+    io:format("Disconnected apparently... letting the bot crash..~n"),
     {stop, disconnected, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -212,7 +211,8 @@ handle(#ircmsg{command= <<"PING">>, tail=T}=_Msg, #state{}=State) ->
 handle(#ircmsg{prefix=_P, command= <<"PONG">>, arguments=_A, tail=_T}=_Msg, #state{}=State) ->
     gen_server:cast(self(), got_pong),
     {ok, State};
-handle(#ircmsg{prefix=_P, command=_C, arguments=_A, tail=_T}=Msg, #state{}=State) ->
+handle(#ircmsg{prefix=_P, command=_C, arguments=_A, tail=_T}=Msg, #state{serverconfig=#serverconfig{modules=Modules}}=State) ->
+    [ Module:handle_msg(Msg) || Module <- Modules ],
     case ircmsg:is_numeric(Msg) of
         {true, Nr} -> ?MODULE:handle_numeric_reply(Nr, Msg, State);
         {false, _} -> ircmsg:show(Msg),

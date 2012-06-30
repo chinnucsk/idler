@@ -6,4 +6,4 @@
               {mod,{idler_app,[]}},
               {env,[]},
               {modules,[config,connection,connection_sup,connectionhelper,
-                        idler_app,idler_sup,ircmsg]}]}.
+                        h_morning,idler_app,idler_sup,ircmsg,msghandler]}]}.

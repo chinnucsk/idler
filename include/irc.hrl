@@ -7,4 +7,5 @@
                        hostname,
                        port=6667,
                        nick="dingd1ng",
-                       channels=[]}).
+                       channels=[],
+                       modules=[]}).
