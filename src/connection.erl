@@ -20,7 +20,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, 
          terminate/2, code_change/3]).
 
--export([send_msg/2, send_raw/2, handle/2, handle_numeric_reply/3]).
+-export([send_msg/2, send_msg/5, send_raw/2, handle/2, handle_numeric_reply/3]).
 
 -define(SERVER, ?MODULE).
 
@@ -32,10 +32,13 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
-%% -spec send_msg(Pid :: pid()) -> Msg :: ircmsg:#ircmsg{}.
+-spec send_msg(Pid :: pid(), Msg :: #ircmsg{}) -> ok.
 send_msg(Pid, Msg) ->
     gen_server:cast(Pid, {send_msg, Msg}).
+-spec send_msg(Pid :: pid(), Prefix :: binary(), Command :: binary(), Arguments :: [binary()], Tail :: binary()) -> ok.
+send_msg(Pid, Prefix, Command, Arguments, Tail) ->
+    send_msg(Pid, ircmsg:create(Prefix, Command, Arguments, Tail)).
+
 send_raw(Pid, Line) ->
     gen_server:cast(Pid, {send_raw, Line}).
 

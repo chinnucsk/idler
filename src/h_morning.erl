@@ -12,13 +12,11 @@
 
 handle_msg(Prefix, <<"PRIVMSG">>, Args, <<"not">>) ->
     %% these are used in case I ever switch back to an opaque type.
-    Nick = ircmsg:nick_from_prefix(Prefix),
+    Nick = ircmsg:nick_from_prefix(Prefix), 
     case Nick of
         <<"Erlang">> -> 
-            connection:send_msg(self(), 
-                                ircmsg:create(<<>>,<<"PRIVMSG">>,Args,<<"But it is!">>));
-        _ -> connection:send_msg(self(),
-                                 ircmsg:create(<<>>,<<"PRIVMSG">>,Args,<<"You sure?">>))
+            connection:send_msg(self(), <<>>, <<"PRIVMSG">>, Args, <<"But it is!">>);
+        _ -> connection:send_msg(self(), <<>>, <<"PRIVMSG">>, Args, <<"You sure?">>)
     end;
 handle_msg(_, _, _, _) -> ok.
 
