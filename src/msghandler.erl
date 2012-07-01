@@ -12,6 +12,7 @@
 %% The callback function that needs to be implemented.
 %% Always returns ok, sends back with gen_server:cast(self(), {send_msg, #ircmsg{}}).
 %% @end
--callback handle_msg(Message :: #ircmsg{}) -> ok.
+-callback handle_msg(Prefix :: binary(), Command :: binary(), Arguments :: [binary()], Tail :: binary()) -> ok.
+
 
 

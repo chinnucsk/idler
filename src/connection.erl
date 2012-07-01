@@ -211,14 +211,16 @@ handle(#ircmsg{command= <<"PING">>, tail=T}=_Msg, #state{}=State) ->
 handle(#ircmsg{prefix=_P, command= <<"PONG">>, arguments=_A, tail=_T}=_Msg, #state{}=State) ->
     gen_server:cast(self(), got_pong),
     {ok, State};
-handle(#ircmsg{prefix=_P, command=_C, arguments=_A, tail=_T}=Msg, #state{serverconfig=#serverconfig{modules=Modules}}=State) ->
-    [ Module:handle_msg(Msg) || Module <- Modules ],
+handle(#ircmsg{prefix=P, command=C, arguments=A, tail=T}=Msg, #state{serverconfig=#serverconfig{modules=Modules}}=State) ->
+    [ Module:handle_msg(P, C, A, T) || Module <- Modules ],
+    %% not sure we still need numeric replies in separate handlers...
     case ircmsg:is_numeric(Msg) of
         {true, Nr} -> ?MODULE:handle_numeric_reply(Nr, Msg, State);
         {false, _} -> ircmsg:show(Msg),
                       {ok, State}
     end.
     
+%% @doc
 %%%===================================================================
 %%% Numeric handlers. See: http://www.irchelp.org/irchelp/rfc/rfc2812.txt
 %%%===================================================================
@@ -227,8 +229,9 @@ handle(#ircmsg{prefix=_P, command=_C, arguments=_A, tail=_T}=Msg, #state{serverc
 %%% generated in the response to commands are found in the range from 200
 %%% to 399.
 %%%===================================================================
-
+%% @end
 -spec handle_numeric_reply(Nr :: integer(), Msg :: #ircmsg{}, #state{}) -> {#ircmsg{}, #state{}} | {ok, #state{}}.
+
 %% @doc
 %%% The server sends Replies 001 to 004 to a user upon
 %%% successful registration.

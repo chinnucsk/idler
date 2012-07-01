@@ -8,12 +8,11 @@
 -module(h_morning).
 -behaviour(msghandler).
 -include("../include/irc.hrl").
--export([handle_msg/1]).
+-export([handle_msg/4]).
 
-handle_msg(#ircmsg{tail = <<"not">> }=Msg) ->
+handle_msg(Prefix, <<"PRIVMSG">>, Args, <<"not">>) ->
     %% these are used in case I ever switch back to an opaque type.
-    Nick = ircmsg:nick(Msg),
-    Args = ircmsg:arguments(Msg),
+    Nick = ircmsg:nick_from_prefix(Prefix),
     case Nick of
         <<"Erlang">> -> 
             connection:send_msg(self(), 
@@ -21,6 +20,5 @@ handle_msg(#ircmsg{tail = <<"not">> }=Msg) ->
         _ -> connection:send_msg(self(),
                                  ircmsg:create(<<>>,<<"PRIVMSG">>,Args,<<"You sure?">>))
     end;
-handle_msg(_) -> ok.
-
+handle_msg(_, _, _, _) -> ok.
 
