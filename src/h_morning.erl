@@ -10,6 +10,7 @@
 -include("../include/irc.hrl").
 -export([handle_msg/4]).
 
+-spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(Prefix, <<"PRIVMSG">>, Args, <<"not">>) ->
     %% these are used in case I ever switch back to an opaque type.
     Nick = ircmsg:nick_from_prefix(Prefix), 

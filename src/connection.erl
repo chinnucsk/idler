@@ -193,7 +193,9 @@ code_change(_OldVsn, State, _Extra) ->
 send_ircmsg(_Sock, ok) ->
     ok;
 send_ircmsg(Sock, Msg) ->
-    gen_tcp:send(Sock, iolist_to_binary([ircmsg:to_line(Msg), <<"\r\n">>])).
+    Line = ircmsg:to_line(Msg),
+    io:format("--> ~p~n",[Msg]),
+    gen_tcp:send(Sock, iolist_to_binary([Line, <<"\r\n">>])).
 
 send_rawmsg(Sock, Line) ->
     gen_tcp:send(Sock, [Line, "\r\n"]).

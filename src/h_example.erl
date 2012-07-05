@@ -22,6 +22,7 @@
 %% 
 %% Tail is the actual message. The things people type in IRC are here.
 %% @end
+-spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 

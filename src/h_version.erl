@@ -15,6 +15,12 @@
 %% 
 %% Tail is the actual message. The things people type in IRC are here.
 %% @end
-handle_msg(Prefix, "CTCP", _Args, <<"VERSION">>) ->
+-spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
+handle_msg(Prefix, <<"CTCP">>, _Args, <<"VERSION">>) ->
     Nick = ircmsg:nick_from_prefix(Prefix),
-    connection:send_msg(self(), <<>>, <<"CTCP_REPLY">>, [Nick], <<"DingBot -Erlang version- http://bitbucket.org/gertm/idler">> ).
+    connection:send_msg(self(), <<>>, <<"CTCP_REPLY">>, [Nick], <<"DingBot Erlang version http://bitbucket.org/gertm/idler/ ">> ),
+    ok;
+handle_msg(_,Cmd,_,_) ->
+    io:format("--> ~p~n",[Cmd]),
+    ok.
+
