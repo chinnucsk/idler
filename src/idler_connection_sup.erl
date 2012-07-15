@@ -60,9 +60,9 @@ init([]) ->
     Shutdown = 2000,
     Type = worker,
     
-    Cfgs = config:load_config(),
+    Cfgs = idler_config:load_config(),
     
-    Children = [ {list_to_atom(Cfg#serverconfig.name), {connection, start_link, [Cfg]}, Restart, Shutdown, Type, [connection]} || Cfg <- Cfgs ],
+    Children = [ {list_to_atom(Cfg#serverconfig.name), {idler_connection, start_link, [Cfg]}, Restart, Shutdown, Type, [idler_connection]} || Cfg <- Cfgs ],
     io:format("~p~n",[Children]),
     {ok, {SupFlags, Children}}.
 

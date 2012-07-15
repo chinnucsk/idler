@@ -37,7 +37,7 @@ send_msg(Pid, Msg) ->
     gen_server:cast(Pid, {send_msg, Msg}).
 -spec send_msg(Pid :: pid(), Prefix :: binary(), Command :: binary(), Arguments :: [binary()], Tail :: binary()) -> ok.
 send_msg(Pid, Prefix, Command, Arguments, Tail) ->
-    send_msg(Pid, ircmsg:create(Prefix, Command, Arguments, Tail)).
+    send_msg(Pid, idler_ircmsg:create(Prefix, Command, Arguments, Tail)).
 
 send_raw(Pid, Line) ->
     gen_server:cast(Pid, {send_raw, Line}).
@@ -139,11 +139,11 @@ handle_info(timeout, #state{serverconfig=#serverconfig{hostname=Host, port=Port,
 
     %% spawn the helper process to keep pinging the server.
     %% needs to be its own module probably.
-    ConHelpPid = spawn_link(connectionhelper, start, [Sock, self()]),
+    ConHelpPid = spawn_link(idler_connectionhelper, start, [Sock, self()]),
     inet:setopts(Sock, [{active, once}]),
     {noreply, #state{socket=Sock, serverconfig=ServerCfg, connectionhelper=ConHelpPid}};
 handle_info({tcp, _S, Data}, #state{socket=Sock}=State) ->
-    Msg = ircmsg:parse_line(Data), 
+    Msg = idler_ircmsg:parse_line(Data), 
     {Response, NewState} = ?MODULE:handle(Msg, State),
     case Response of
         ok -> ok;
@@ -193,8 +193,7 @@ code_change(_OldVsn, State, _Extra) ->
 send_ircmsg(_Sock, ok) ->
     ok;
 send_ircmsg(Sock, Msg) ->
-    Line = ircmsg:to_line(Msg),
-    io:format("--> ~p~n",[Msg]),
+    Line = idler_ircmsg:to_line(Msg),
     gen_tcp:send(Sock, iolist_to_binary([Line, <<"\r\n">>])).
 
 send_rawmsg(Sock, Line) ->
@@ -212,16 +211,16 @@ send_rawmsg(Sock, Line) ->
 
 -spec handle(#ircmsg{}, #state{}) -> {#ircmsg{}, #state{}} | {ok, #state{}}.
 handle(#ircmsg{command= <<"PING">>, tail=T}=_Msg, #state{}=State) ->
-    {ircmsg:create(<<>>, <<"PONG">>, [], T), State};
+    {idler_ircmsg:create(<<>>, <<"PONG">>, [], T), State};
 handle(#ircmsg{prefix=_P, command= <<"PONG">>, arguments=_A, tail=_T}=_Msg, #state{}=State) ->
     gen_server:cast(self(), got_pong),
     {ok, State};
 handle(#ircmsg{prefix=P, command=C, arguments=A, tail=T}=Msg, #state{serverconfig=#serverconfig{modules=Modules}}=State) ->
     [ Module:handle_msg(P, C, A, T) || Module <- Modules ],
     %% not sure we still need numeric replies in separate handlers...
-    case ircmsg:is_numeric(Msg) of
+    case idler_ircmsg:is_numeric(Msg) of
         {true, Nr} -> ?MODULE:handle_numeric_reply(Nr, Msg, State);
-        {false, _} -> ircmsg:show(Msg),
+        {false, _} -> idler_ircmsg:show(Msg),
                       {ok, State}
     end.
     
