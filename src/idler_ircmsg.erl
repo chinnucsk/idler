@@ -6,8 +6,8 @@
 %%% @end
 %%% Created : 29 Jan 2012 by Gert Meulyzer <@G3rtm on Twitter>
 
--module(ircmsg).
--include("../include/irc.hrl").
+-module(idler_ircmsg).
+-include("../include/idler_irc.hrl").
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.

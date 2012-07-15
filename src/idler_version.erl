@@ -1,6 +1,6 @@
--module(h_version).
--behaviour(msghandler).
--include("../include/irc.hrl").
+-module(idler_version).
+-behaviour(idler_msghandler).
+-include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
 
 %% @doc
@@ -18,7 +18,7 @@
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(Prefix, <<"CTCP">>, _Args, <<"VERSION">>) ->
     Nick = ircmsg:nick_from_prefix(Prefix),
-    connection:send_msg(self(), <<>>, <<"CTCP_REPLY">>, [Nick], <<"DingBot Erlang version http://bitbucket.org/gertm/idler/ ">> ),
+    connection:send_msg(self(), <<>>, <<"CTCP_REPLY">>, [Nick], <<"Idler IRC bot http://bitbucket.org/gertm/idler/ ">> ),
     ok;
 handle_msg(_,Cmd,_,_) ->
     io:format("--> ~p~n",[Cmd]),

@@ -6,10 +6,10 @@
 %%% @end
 %%% Created : 22 Jun 2012 by Gert Meulyzer <@G3rtm on Twitter>
 %%%-------------------------------------------------------------------
--module(connection_sup).
+-module(idler_connection_sup).
 
 -behaviour(supervisor).
--include("../include/irc.hrl").
+-include("../include/idler_irc.hrl").
 %% API
 -export([start_link/0]).
 

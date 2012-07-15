@@ -5,8 +5,8 @@
 %%% @end
 %%% Created : 19 Jun 2012 by Gert Meulyzer <@G3rtm on Twitter>
 
--module(config).
--include("../include/irc.hrl").
+-module(idler_config).
+-include("../include/idler_irc.hrl").
 
 -export([load_config/0]).
 

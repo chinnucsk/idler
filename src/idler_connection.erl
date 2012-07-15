@@ -6,10 +6,10 @@
 %%% @end
 %%% Created : 28 Dec 2011 by Gert Meulyzer <@G3rtm on Twitter>
 %%%-------------------------------------------------------------------
--module(connection).
+-module(idler_connection).
 
 -behaviour(gen_server).
--include("../include/irc.hrl").
+-include("../include/idler_irc.hrl").
 
 -define(COLON, 58).
 

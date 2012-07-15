@@ -5,8 +5,8 @@
 %%% @end
 %%% Created : 29 Jun 2012 by Gert Meulyzer <@G3rtm on Twitter>
 
--module(msghandler).
--include("../include/irc.hrl").
+-module(idler_msghandler).
+-include("../include/idler_irc.hrl").
 
 %% @doc
 %% The callback function that needs to be implemented.

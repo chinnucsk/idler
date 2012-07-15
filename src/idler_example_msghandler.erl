@@ -5,9 +5,9 @@
 %%% @end
 %%% Created :  2 Jul 2012 by Gert Meulyzer <@G3rtm on Twitter>
 
--module(h_example).
--behaviour(msghandler).
--include("../include/irc.hrl").
+-module(idler_example_msghandler).
+-behaviour(idler_msghandler).
+-include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
 
 %% @doc

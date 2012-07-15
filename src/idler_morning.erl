@@ -5,9 +5,9 @@
 %%% @end
 %%% Created : 29 Jun 2012 by Gert Meulyzer <@G3rtm on Twitter>
 
--module(h_morning).
--behaviour(msghandler).
--include("../include/irc.hrl").
+-module(idler_morning).
+-behaviour(idler_msghandler).
+-include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
 
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.

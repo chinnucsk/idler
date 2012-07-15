@@ -5,7 +5,7 @@
 %%% @end
 %%% Created : 29 Feb 2012 by Gert <@G3rtm on Twitter>
 
--module(connectionhelper).
+-module(idler_connectionhelper).
 
 -export([ping_server/2, start/2]).
 
