@@ -13,11 +13,11 @@
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(Prefix, <<"PRIVMSG">>, Args, <<"not">>) ->
     %% these are used in case I ever switch back to an opaque type.
-    Nick = ircmsg:nick_from_prefix(Prefix), 
+    Nick = idler_ircmsg:nick_from_prefix(Prefix), 
     case Nick of
         <<"Erlang">> -> 
-            connection:send_msg(self(), <<>>, <<"PRIVMSG">>, Args, <<"But it is!">>);
-        _ -> connection:send_msg(self(), <<>>, <<"PRIVMSG">>, Args, <<"You sure?">>)
+            idler_connection:send_msg(self(), <<>>, <<"PRIVMSG">>, Args, <<"But it is!">>);
+        _ -> idler_connection:send_msg(self(), <<>>, <<"PRIVMSG">>, Args, <<"You sure?">>)
     end;
 handle_msg(_, _, _, _) -> ok.
 

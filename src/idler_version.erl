@@ -17,10 +17,9 @@
 %% @end
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(Prefix, <<"CTCP">>, _Args, <<"VERSION">>) ->
-    Nick = ircmsg:nick_from_prefix(Prefix),
-    connection:send_msg(self(), <<>>, <<"CTCP_REPLY">>, [Nick], <<"Idler IRC bot http://bitbucket.org/gertm/idler/ ">> ),
+    Nick = idler_ircmsg:nick_from_prefix(Prefix),
+    idler_connection:send_msg(self(), <<>>, <<"CTCP_REPLY">>, [Nick], <<"Idler IRC bot http://bitbucket.org/gertm/idler/ ">> ),
     ok;
-handle_msg(_,Cmd,_,_) ->
-    io:format("--> ~p~n",[Cmd]),
+handle_msg(_,_,_,_) ->
     ok.
 
