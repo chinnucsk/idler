@@ -17,14 +17,14 @@
 -export([start_link/1]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, 
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
 -export([send_msg/2, send_msg/5, send_raw/2, handle/2, handle_numeric_reply/3]).
 
 -define(SERVER, ?MODULE).
 
--record(state, {socket, 
+-record(state, {socket,
                 serverconfig=#serverconfig{},
                 connectionhelper=undefined
                }).
@@ -86,7 +86,7 @@ init([#serverconfig{}=Cfg]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call(_Request, _From, State) ->
-    Reply = ok, 
+    Reply = ok,
     {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
@@ -100,10 +100,10 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast({send_raw, Line}, #state{socket=Sock}=State) ->
-    send_rawmsg(Sock, Line), 
+    send_rawmsg(Sock, Line),
     {noreply, State};
 handle_cast({send_msg, Msg}, #state{socket=Sock}=State) ->
-    send_ircmsg(Sock, Msg), 
+    send_ircmsg(Sock, Msg),
     {noreply, State};
 handle_cast(stop, State) ->
     {stop, normal, State};
@@ -130,12 +130,12 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info(timeout, #state{serverconfig=#serverconfig{hostname=Host, port=Port, nick=UserName}=ServerCfg}) ->
-    {ok, Sock} = gen_tcp:connect(Host, Port, [binary, {packet, line}, {active, once}]), 
+    {ok, Sock} = gen_tcp:connect(Host, Port, [binary, {packet, line}, {active, once}]),
     %% Do the IRC login
-    gen_tcp:send(Sock, "NICK "++UserName), 
-    gen_tcp:send(Sock, "\r\n"), 
-    gen_tcp:send(Sock, "USER "++UserName++" "++UserName++" "++UserName++" "++UserName), 
-    gen_tcp:send(Sock, "\r\n"), 
+    gen_tcp:send(Sock, "NICK "++UserName),
+    gen_tcp:send(Sock, "\r\n"),
+    gen_tcp:send(Sock, "USER "++UserName++" "++UserName++" "++UserName++" "++UserName),
+    gen_tcp:send(Sock, "\r\n"),
 
     %% spawn the helper process to keep pinging the server.
     %% needs to be its own module probably.
@@ -143,22 +143,22 @@ handle_info(timeout, #state{serverconfig=#serverconfig{hostname=Host, port=Port,
     inet:setopts(Sock, [{active, once}]),
     {noreply, #state{socket=Sock, serverconfig=ServerCfg, connectionhelper=ConHelpPid}};
 handle_info({tcp, _S, Data}, #state{socket=Sock}=State) ->
-    Msg = idler_ircmsg:parse_line(Data), 
+    Msg = idler_ircmsg:parse_line(Data),
     {Response, NewState} = ?MODULE:handle(Msg, State),
     case Response of
         ok -> ok;
         _ -> send_ircmsg(Sock, Response)
     end,
-    inet:setopts(Sock, [{active, once}]),    
+    inet:setopts(Sock, [{active, once}]),
     {noreply, NewState};
 handle_info({tcp_closed, _Port}, State) ->
-    io:format("DISCONNECTED!!!!"), 
+    io:format("DISCONNECTED!!!!"),
     {stop, disconnected, State};
 handle_info({tcp_error, _Socket, Reason}, State) ->
-    io:format("TCP ERROR! ~p~n", [Reason]), 
+    io:format("TCP ERROR! ~p~n", [Reason]),
     {stop, error, State};
 handle_info(Info, State) ->
-    io:format("UNKNOWN: ~p~n", [Info]), 
+    io:format("UNKNOWN: ~p~n", [Info]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -223,7 +223,7 @@ handle(#ircmsg{prefix=P, command=C, arguments=A, tail=T}=Msg, #state{serverconfi
         {false, _} -> idler_ircmsg:show(Msg),
                       {ok, State}
     end.
-    
+
 %% @doc
 %%%===================================================================
 %%% Numeric handlers. See: http://www.irchelp.org/irchelp/rfc/rfc2812.txt
@@ -241,7 +241,7 @@ handle(#ircmsg{prefix=P, command=C, arguments=A, tail=T}=Msg, #state{serverconfi
 %%% successful registration.
 %% RPL_WELCOME
 %% @end
-handle_numeric_reply(001, _Msg, #state{}=State) -> 
+handle_numeric_reply(001, _Msg, #state{}=State) ->
     io:format("Reply for RPL_WELCOME not implemented.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
@@ -278,7 +278,7 @@ handle_numeric_reply(005, _Msg, #state{}=State) ->
 %% - Reply format used by USERHOST to list replies to
 %%   the query list.  The reply string is composed as
 %%   follows:
- 
+
 %%   reply = nickname [ "*" ] "=" ( "+" / "-" ) hostname
 
 %%   The '*' indicates whether the client has registered
@@ -557,7 +557,7 @@ handle_numeric_reply(315, _Msg, #state{}=State) ->
 %% message is sent with no parameters and all visible
 %% channels and contents are sent back in a series of
 %% RPL_NAMEREPLY messages with a RPL_ENDOFNAMES to mark
-%% the end.        
+%% the end.
 
 %% RPL_NAMREPLY
 %% @end
@@ -649,7 +649,7 @@ handle_numeric_reply(372, _Msg, #state{}=State) ->
 %% RPL_ENDOFMOTD
 %% we're using this to start the joining of channels.
 %% Should get passed around as state, so we know what to join here.
-%% 
+%%
 %% @end
 handle_numeric_reply(376, _Msg, #state{serverconfig=#serverconfig{channels=Channels}}=State) ->
     [ gen_server:cast(self(), {send_raw, iolist_to_binary([<<"JOIN ">>, Channel])}) || Channel <- Channels ],
@@ -756,90 +756,90 @@ handle_numeric_reply(395, _Msg, #state{}=State) ->
 
 %% RPL_TRACELINK
 %% @end
-handle_numeric_reply(200, _Msg, #state{}=State) -> 
+handle_numeric_reply(200, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACELINK no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 %% RPL_TRACECONNECTING
 %% @end
-handle_numeric_reply(201, _Msg, #state{}=State) -> 
+handle_numeric_reply(201, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACECONNECTING no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACEHANDSHAKE
 %% @end
-handle_numeric_reply(202, _Msg, #state{}=State) -> 
+handle_numeric_reply(202, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACEHANDSHAKE no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACEUNKNOWN
 %% @end
-handle_numeric_reply(203, _Msg, #state{}=State) -> 
+handle_numeric_reply(203, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACEUNKNOWN no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACEOPERATOR
 %% @end
-handle_numeric_reply(204, _Msg, #state{}=State) -> 
+handle_numeric_reply(204, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACEOPERATOR no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACEUSER
 %% @end
-handle_numeric_reply(205, _Msg, #state{}=State) -> 
+handle_numeric_reply(205, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACEUSER no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACESERVER
 %% @end
-handle_numeric_reply(206, _Msg, #state{}=State) -> 
+handle_numeric_reply(206, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACESERVER no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACESERVICE
 %% @end
-handle_numeric_reply(207, _Msg, #state{}=State) -> 
+handle_numeric_reply(207, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACESERVICE no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACENEWTYPE
 %% @end
-handle_numeric_reply(208, _Msg, #state{}=State) -> 
+handle_numeric_reply(208, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACENEWTYPE no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACECLASS
 %% @end
-handle_numeric_reply(209, _Msg, #state{}=State) -> 
+handle_numeric_reply(209, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACECLASS no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACERECONNECT
 %% @end
-handle_numeric_reply(210, _Msg, #state{}=State) -> 
+handle_numeric_reply(210, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACERECONNECT no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACELOG
 %% @end
-handle_numeric_reply(261, _Msg, #state{}=State) -> 
+handle_numeric_reply(261, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACELOG no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
 
 %% RPL_TRACEEND
 %% @end
-handle_numeric_reply(262, _Msg, #state{}=State) -> 
+handle_numeric_reply(262, _Msg, #state{}=State) ->
     io:format("Reply for RPL_TRACEEND no implemented yet.~n~p~n", [_Msg]),
     {ok, State};
 %% @doc
@@ -847,7 +847,7 @@ handle_numeric_reply(262, _Msg, #state{}=State) ->
 %% - reports statistics on a connection.  <linkname> identifies the particular connection,
 %% <sendq> is the amount of data that is queued and waiting to be
 %% sent <sent messages> the number of messages sent, and <sent Kbytes> the amount of data sent,
-%% in Kbytes. <received messages> and <received Kbytes> are the equivalent of 
+%% in Kbytes. <received messages> and <received Kbytes> are the equivalent of
 %% <sent messages> and <sent Kbytes> for received data,
 %% respectively.  <time open> indicates how long ago the connection was opened, in seconds.
 
@@ -1083,7 +1083,7 @@ handle_numeric_reply(404, _Msg, #state{}=State) ->
 %% ERR_TOOMANYCHANNELS
 %% "<channel name> :You have joined too many channels"
 %% Sent to a user when they have joined the maximum
-%% number of allowed channels and they try to join                    
+%% number of allowed channels and they try to join
 %% another channel.
 %% @end
 handle_numeric_reply(405, _Msg, #state{}=State) ->
@@ -1312,7 +1312,7 @@ handle_numeric_reply(443, _Msg, #state{}=State) ->
 %% ERR_NOLOGIN
 %% "<user> :User not logged in"
 %% Returned by the summon after a SUMMON command for a
-%% user was unable to be performed since they were not                             
+%% user was unable to be performed since they were not
 %% logged in.
 %% @end
 handle_numeric_reply(444, _Msg, #state{}=State) ->
