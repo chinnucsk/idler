@@ -9,6 +9,7 @@
 -behaviour(idler_msghandler).
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
+-compile(export_all).
 
 %% @doc
 %% Prefix is the part that contains the nickname and host on most messages
@@ -24,9 +25,12 @@
 %% @end
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, Tail) ->
-    case check_for_url(Tail) of
-        [] -> ok;
-        URL -> idler_connection:send_msg(self(), <<>>, <<"PRIVMSG">>, Args, tinyurl(URL))
+    if byte_size(Tail) > 135 ->
+            case check_for_url(Tail) of
+                [] -> ok;
+                URL -> idler_connection:send_msg(self(), <<>>, <<"PRIVMSG">>, Args, tinyurl(URL))
+            end;
+       true -> ok
     end;
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
