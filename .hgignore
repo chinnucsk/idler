@@ -1,4 +1,6 @@
 glob:*~
 glob:*.beam
+glob:rebar
 glob:.eunit/*
 glob:doc/*
+glob:*.dets

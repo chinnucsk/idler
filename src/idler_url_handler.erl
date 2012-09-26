@@ -28,7 +28,7 @@ handle_msg(_Prefix, <<"PRIVMSG">>, Args, Tail) ->
     if byte_size(Tail) > 135 ->
             case check_for_url(Tail) of
                 [] -> ok;
-                URL -> idler_connection:send_msg(self(), <<>>, <<"PRIVMSG">>, Args, tinyurl(URL))
+                URL -> idler_connection:reply(self(), Args, tinyurl(URL))
             end;
        true -> ok
     end;

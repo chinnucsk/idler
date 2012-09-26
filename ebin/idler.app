@@ -7,6 +7,6 @@
               {env,[]},
               {modules,[idler_app,idler_config,idler_connection,
                         idler_connection_sup,idler_connectionhelper,
-                        idler_example_msghandler,idler_ircmsg,idler_morning,
-                        idler_msghandler,idler_sup,idler_url_handler,
-                        idler_version]}]}.
+                        idler_example_msghandler,idler_ircmsg,
+                        idler_le_handler,idler_morning,idler_msghandler,
+                        idler_sup,idler_url_handler,idler_version]}]}.

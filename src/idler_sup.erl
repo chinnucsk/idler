@@ -17,6 +17,8 @@
 %% ===================================================================
 
 start_link() ->
+    IdlerDataFileName = code:priv_dir(idler)++"/idlerdata.dets",
+    dets:open_file(idlerdata, [{file, IdlerDataFileName}, {type, set}]),
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% ===================================================================

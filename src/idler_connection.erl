@@ -20,7 +20,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
--export([send_msg/2, send_msg/5, send_raw/2, handle/2, handle_numeric_reply/3]).
+-export([send_msg/2, send_msg/5, reply/3, send_raw/2, handle/2, handle_numeric_reply/3]).
 
 -define(SERVER, ?MODULE).
 
@@ -38,6 +38,9 @@ send_msg(Pid, Msg) ->
 -spec send_msg(Pid :: pid(), Prefix :: binary(), Command :: binary(), Arguments :: [binary()], Tail :: binary()) -> ok.
 send_msg(Pid, Prefix, Command, Arguments, Tail) ->
     send_msg(Pid, idler_ircmsg:create(Prefix, Command, Arguments, Tail)).
+-spec reply(Pid :: pid(), Arguments :: [binary()], Tail :: binary()) -> ok.
+reply(Pid, Arguments, Tail) ->
+    send_msg(Pid, <<>>, <<"NOTICE">>, Arguments, Tail).
 
 send_raw(Pid, Line) ->
     gen_server:cast(Pid, {send_raw, Line}).
