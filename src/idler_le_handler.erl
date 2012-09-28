@@ -29,7 +29,7 @@ handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"Le doc for ", Doc/binary>>) ->
         none -> ok;
         Url -> idler_connection:reply(self(), Args, Url)
     end;
-handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"!doc ", Doc/binary>>) ->   
+handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"le doc for ", Doc/binary>>) ->   
     case erlang_doc_url(Doc) of
         none -> ok;
         Url -> idler_connection:reply(self(), Args, Url)
@@ -40,6 +40,7 @@ handle_msg(_Prefix, <<"CTCP">>, Args, <<"ACTION searches for ", _ToSearch/binary
     idler_connection:reply(self(), Args, <<"Dunno that yet!">>);
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
+
 
 -spec erlang_doc_url(binary()) -> binary().
 erlang_doc_url(Doc) ->
