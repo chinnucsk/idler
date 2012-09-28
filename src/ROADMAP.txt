@@ -1,0 +1,3 @@
+- !lyse command
+- follow the github erlang repo and post important updates
+- follow the #erlang hashtag on twitter and post the updates to the channel.
