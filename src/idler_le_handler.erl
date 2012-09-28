@@ -36,5 +36,5 @@ handle_msg(_Prefix, _Command, _Args, _Tail) ->
 erlang_doc_url(Doc) ->
     ColonReplaced = binary:replace(Doc,<<":">>,<<".html#">>),
     UrlPart = binary:replace(ColonReplaced, <<"/">>, <<"-">>),
-    list_to_binary("http://www.erlang.org/erldoc?q="++edoc_lib:escape_uri(binary_to_list(UrlPart))).
+    list_to_binary("http://www.erlang.org/erldoc?q="++binary_to_list(UrlPart)).
     
