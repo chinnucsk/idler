@@ -9,7 +9,7 @@
 -behaviour(idler_msghandler).
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
-%% -compile(export_all).
+-compile(export_all).
 
 %% @doc
 %% Prefix is the part that contains the nickname and host on most messages
@@ -25,7 +25,16 @@
 %% @end
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"Le doc for ", Doc/binary>>) ->   
-    idler_connection:reply(self(), Args, erlang_doc_url(Doc));
+    case erlang_doc_url(Doc) of
+        none -> ok;
+        Url -> idler_connection:reply(self(), Args, Url)
+    end;
+handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"!doc ", Doc/binary>>) ->   
+    case erlang_doc_url(Doc) of
+        none -> ok;
+        Url -> idler_connection:reply(self(), Args, Url)
+    end;
+    
 handle_msg(_Prefix, <<"CTCP">>, Args, <<"ACTION searches for ", _ToSearch/binary>>) ->
     io:format("In le search handler!"),
     idler_connection:reply(self(), Args, <<"Dunno that yet!">>);
@@ -34,8 +43,24 @@ handle_msg(_Prefix, _Command, _Args, _Tail) ->
 
 -spec erlang_doc_url(binary()) -> binary().
 erlang_doc_url(Doc) ->
-    ColonReplaced = binary:replace(Doc,<<":">>,<<".html#">>),
-    UrlPart = binary:replace(ColonReplaced, <<"/">>, <<"-">>),
-%%    http://www.erlang.org/doc/man/lists.html#filter-2
-    list_to_binary("http://www.erlang.org/doc/man/"++binary_to_list(UrlPart)).
+    case binary:split(Doc,<<":">>) of
+        [H|_T] -> 
+            case url_exists("http://www.erlang.org/doc/man/"++binary_to_list(H)++".html") of
+                false -> none;
+                true ->
+                    ColonReplaced = binary:replace(Doc,<<":">>,<<".html#">>),
+                    UrlPart = binary:replace(ColonReplaced, <<"/">>, <<"-">>),
+                    %%    http://www.erlang.org/doc/man/lists.html#filter-2
+                    list_to_binary("http://www.erlang.org/doc/man/"++binary_to_list(UrlPart))
+            end;
+        _ -> none
+    end.
+    
+            
+url_exists(Url) ->
+    case httpc:request(Url) of
+        {error, _} -> false;
+        {ok, {{_,404,_},_,_}} -> false;
+        _ -> true
+    end.
     
