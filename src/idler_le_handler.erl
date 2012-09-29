@@ -1,7 +1,7 @@
 %%% @author Gert Meulyzer <@G3rtm on Twitter>
 %%% @copyright (C) 2012, Gert Meulyzer
 %%% @doc
-%%% 
+%%% Handler module for the 'le ..' commands of the bot.
 %%% @end
 %%% Created : 26 Sep 2012 by Gert Meulyzer <@G3rtm on Twitter>
 
@@ -9,20 +9,7 @@
 -behaviour(idler_msghandler).
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
--compile(export_all).
 
-%% @doc
-%% Prefix is the part that contains the nickname and host on most messages
-%% Especially PRIVMSG etc.
-%% 
-%% Command is the type of message it is. CTCP messages get converted from PRIVMSG to
-%% CTCP and CTCP_REPLY for easy matching
-%% 
-%% Args is the list of arguments that is supplied. For example the channel to which the message
-%% has been sent.
-%% 
-%% Tail is the actual message. The things people type in IRC are here.
-%% @end
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"Le doc for ", Doc/binary>>) ->   
     case erlang_doc_url(Doc) of
@@ -54,7 +41,7 @@ erlang_doc_url(Doc) ->
         _ -> none
     end.
     
-            
+-spec url_exists(string()) -> boolean().
 url_exists(Url) ->
     case httpc:request(Url) of
         {error, _} -> false;
@@ -62,6 +49,7 @@ url_exists(Url) ->
         _ -> true
     end.
 
+-spec reformat_url(binary()) -> 'none' | binary().
 reformat_url(Doc) ->
     case binary:split(Doc, <<":">>) of
         [H|[T|[]]] ->
