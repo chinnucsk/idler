@@ -12,23 +12,25 @@
 -compile(export_all).
 
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
-handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"Le doc for ", Doc/binary>>) ->   
-    case erlang_doc_url(Doc) of
-        none -> ok;
-        Url -> idler_connection:reply(self(), Args, Url)
-    end;
+handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"Le doc for ", Doc/binary>>) ->
+    handle_search(Args, Doc);
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"le doc for ", Doc/binary>>) ->   
-    case erlang_doc_url(Doc) of
-        none -> ok;
-        Url -> idler_connection:reply(self(), Args, Url)
-    end;
-    
-handle_msg(_Prefix, <<"CTCP">>, Args, <<"ACTION searches for ", _ToSearch/binary>>) ->
-    io:format("In le search handler!"), 
-    idler_connection:reply(self(), Args, <<"Dunno that yet!">>);
+    handle_search(Args, Doc);
+handle_msg(_Prefix, <<"CTCP">>, Args, <<"ACTION searches for ", Doc/binary>>) ->
+    handle_search(Args, Doc);
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
+-spec handle_search([binary()], binary()) -> ok.
+handle_search(Args, Doc) ->
+    ReplyPid = self(),
+    spawn(fun() -> 
+                  case erlang_doc_url(Doc) of
+                      none -> ok;
+                      Url -> idler_connection:reply(ReplyPid, Args, Url)
+                  end
+          end),
+    ok.
 
 -spec erlang_doc_url(binary()) -> binary().
 erlang_doc_url(Doc) ->
