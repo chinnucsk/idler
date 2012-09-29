@@ -64,10 +64,12 @@ url_exists(Url) ->
 
 reformat_url(Doc) ->
     case binary:split(Doc, <<":">>) of
-        [H|T] ->
+        [H|[T|[]]] ->
             case binary:split(hd(T), <<"/">>) of 
                 [H2|T2] -> iolist_to_binary([<<"http://www.erlang.org/doc/man/">>, H, <<".html#">>, H2, <<"-">>, binary:part(hd(T2),0,3)]);
                 _ -> none
             end;
+        [H|_] ->
+            iolist_to_binary([<<"http://www.erlang.org/doc/man/">>, H, <<".html">>]);
         _ -> none
     end.
