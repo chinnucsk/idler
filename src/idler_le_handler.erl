@@ -9,6 +9,7 @@
 -behaviour(idler_msghandler).
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
+-compile(export_all).
 
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"Le doc for ", Doc/binary>>) ->   
@@ -36,7 +37,10 @@ erlang_doc_url(Doc) ->
             case url_exists("http://www.erlang.org/doc/man/"++binary_to_list(H)++".html") of
                 false -> none;
                 true ->
-                    reformat_url(Doc)
+                    case reformat(Doc) of
+                        none -> iolist_to_binary("http://www.erlang.org/doc/man/"++binary_to_list(H)++".html");
+                        Url -> Url
+                    end
             end;
         _ -> none
     end.
@@ -49,15 +53,11 @@ url_exists(Url) ->
         _ -> true
     end.
 
--spec reformat_url(binary()) -> 'none' | binary().
-reformat_url(Doc) ->
-    case binary:split(Doc, <<":">>) of
-        [H|[T|[]]] ->
-            case binary:split(hd(T), <<"/">>) of 
-                [H2|T2] -> iolist_to_binary([<<"http://www.erlang.org/doc/man/">>, H, <<".html#">>, H2, <<"-">>, binary:part(hd(T2),0,3)]);
-                _ -> none
-            end;
-        [H|_] ->
-            iolist_to_binary([<<"http://www.erlang.org/doc/man/">>, H, <<".html">>]);
+reformat(Doc) ->
+    Pattern="^(\\w+):(\\w+)/(\\d+)$",
+    {ok,Regex} = re:compile(Pattern, []),
+    case re:run(Doc, Regex, [{capture, all_but_first, binary}]) of
+        {match, [Module, Fn, Arity]} ->
+            iolist_to_binary([<<"http://www.erlang.org/doc/man/">>, Module, <<".html#">>, Fn, <<"-">>, Arity]);
         _ -> none
     end.
