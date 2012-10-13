@@ -9,7 +9,7 @@
 -behaviour(idler_msghandler).
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
--compile(export_all).
+-define(Pattern, "(http|ftp|https):\\/\\/[\\w\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\., @?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?").
 
 %% @doc
 %% Prefix is the part that contains the nickname and host on most messages
@@ -24,21 +24,17 @@
 %% Tail is the actual message. The things people type in IRC are here.
 %% @end
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
-handle_msg(_Prefix, <<"PRIVMSG">>, Args, Tail) ->
-    if byte_size(Tail) > 135 ->
-            case check_for_url(Tail) of
-                [] -> ok;
-                URL -> idler_connection:reply(self(), Args, tinyurl(URL))
-            end;
-       true -> ok
+handle_msg(_Prefix, <<"PRIVMSG">>, Args, Tail) when byte_size(Tail) > 135 ->
+    case check_for_url(Tail) of
+        [] -> ok;
+        URL -> idler_connection:reply(self(), Args, tinyurl(URL))
     end;
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
 
 check_for_url(Line) ->
-    Pattern="(http|ftp|https):\\/\\/[\\w\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\., @?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?", 
-    {ok, Regex} = re:compile(Pattern, [caseless]), 
+    {ok, Regex} = re:compile(?Pattern, [caseless]), 
     case re:run(Line, Regex, [{capture, first, binary}]) of
         {match, [H]} -> H;
         _ -> []
