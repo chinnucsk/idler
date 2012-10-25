@@ -9,7 +9,7 @@
 -behaviour(idler_msghandler).
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
--compile(export_all).
+
 -define(Pattern, "(http|ftp|https):\\/\\/[\\w\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\., @?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?").
 
 %% @doc
@@ -30,20 +30,28 @@ handle_msg(_Prefix, <<"PRIVMSG">>, Args, Tail) when byte_size(Tail) > 135 ->
         [] -> ok;
         URL -> idler_connection:reply(self(), Args, tinyurl(URL))
     end;
-handle_msg(Prefix, <<"PRIVMSG">>, _Args, Tail) ->
-    case check_for_url(Tail) of
-        [] -> ok;
-        URL -> spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end),
-               ok
-    end;
+handle_msg(Prefix, <<"PRIVMSG">>, [<<"#yfl">>], Tail) ->
+    handle_urls(Prefix, Tail);
+handle_msg(Prefix, <<"CTCP">>, [<<"#yfl">>], Tail) ->
+    handle_urls(Prefix, Tail);
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
+
+handle_urls(Prefix, Tail) ->
+    case check_for_url(Tail) of
+        [] -> ok;
+        [_|_]=L -> [ spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end) ||
+                       URL <- L ];
+        URL -> spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end),
+               ok
+    end.
 
 check_for_url(Line) ->
     {ok, Regex} = re:compile(?Pattern, [caseless]), 
     case re:run(Line, Regex, [{capture, first, binary}]) of
         {match, [H]} -> H;
+        {match, [_|_]=L} -> L;
         _ -> []
     end.
 
@@ -81,7 +89,9 @@ create_rss_item(Title, Desc, URL) ->
 get_pretty_datetime() ->
     {Year, Month, Day} = date(),
     {Hour, Minutes, _} = time(),
-    binary_to_list(iolist_to_binary(io_lib:format("~w/~w/~w ~w:~w GMT+1",[Year, Month, Day, Hour, Minutes]))).
+%%    binary_to_list(iolist_to_binary(
+    io_lib:format("~w/~w/~w ~w:~w GMT+1", [Year, Month, Day, Hour, Minutes]).
+%%        )).
 
 format_utc_timestamp() ->
     TS = {_,_,_} = os:timestamp(),
