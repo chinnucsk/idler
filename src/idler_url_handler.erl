@@ -42,7 +42,8 @@ handle_urls(Prefix, Tail) ->
     case check_for_url(Tail) of
         [] -> ok;
         [_|_]=L -> [ spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end) ||
-                       URL <- L ];
+                       URL <- L ],
+                   ok;
         URL -> spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end),
                ok
     end.
