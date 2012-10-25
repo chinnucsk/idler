@@ -9,6 +9,7 @@
 -behaviour(idler_msghandler).
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
+-compile(export_all).
 -define(Pattern, "(http|ftp|https):\\/\\/[\\w\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\., @?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?").
 
 %% @doc
@@ -28,6 +29,12 @@ handle_msg(_Prefix, <<"PRIVMSG">>, Args, Tail) when byte_size(Tail) > 135 ->
     case check_for_url(Tail) of
         [] -> ok;
         URL -> idler_connection:reply(self(), Args, tinyurl(URL))
+    end;
+handle_msg(Prefix, <<"PRIVMSG">>, _Args, Tail) ->
+    case check_for_url(Tail) of
+        [] -> ok;
+        URL -> spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end),
+               ok
     end;
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
@@ -51,6 +58,54 @@ tinyurl(Url) ->
         {error, _} -> ok;
         {ok, {_,_,TinyUrl}} -> list_to_binary(TinyUrl)
     end.
+
+export_xml_for_url(URL, NickName) ->
+    Nick = binary_to_list(NickName),
+    file:write_file(code:priv_dir(idler)++"/"++get_timestamp_string()++".xml",
+                    create_rss_item("Posted by "++Nick,edoc_lib:escape_uri(get_pretty_datetime()),URL)),
+    ok.
+
+get_timestamp_string() ->
+    {A,B,C} = os:timestamp(),
+    [D,E,F] = io_lib:format("~p~p~p",[A,B,C]),
+    D++E++F.
+
+-spec create_rss_item(Title :: string(), Desc :: string(), URL :: string()) -> string().
+create_rss_item(Title, Desc, URL) ->
+    "<item><title>"++
+        xmerl_lib:export_text(Title)++"</title>"++
+        "<description>"++xmerl_lib:export_text(Desc)++"</description>"++
+        "<link>"++xmerl_lib:export_text(URL)++"</link></item>".
+    
+get_pretty_datetime() ->
+    {Year, Month, Day} = date(),
+    {Hour, Minutes, _} = time(),
+    binary_to_list(iolist_to_binary(io_lib:format("~w/~w/~w ~w:~w GMT+1",[Year, Month, Day, Hour, Minutes]))).
+            
+%% example RSS feed I found somewhere:
+
+%% <?xml version="1.0"?>
+%% <rss version="2.0">
+%% <channel>
+
+%% <title>The Channel Title Goes Here</title>
+%% <description>The explanation of how the items are related goes here</description>
+%% <link>http://www.directoryoflinksgohere</link>
+
+%% <item>
+%% <title>The Title Goes Here</title>
+%% <description>The description goes here</description>
+%% <link>http://www.linkgoeshere.com</link>
+%% </item>
+
+%% <item>
+%% <title>Another Title Goes Here</title>
+%% <description>Another description goes here</description>
+%% <link>http://www.anotherlinkgoeshere.com</link>
+%% </item>
+
+%% </channel>
+%% </rss>
 
 
 %% {ok,{{"HTTP/1.1",200,"OK"},
