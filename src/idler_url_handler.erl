@@ -62,7 +62,7 @@ tinyurl(Url) ->
 export_xml_for_url(URL, NickName) ->
     Nick = binary_to_list(NickName),
     file:write_file(code:priv_dir(idler)++"/"++get_timestamp_string()++".xml",
-                    create_rss_item("Posted by "++Nick,edoc_lib:escape_uri(get_pretty_datetime()),URL)),
+                    create_rss_item(URL, "Posted by "++Nick++" in YFL on "++get_pretty_datetime(),URL)),
     ok.
 
 get_timestamp_string() ->
@@ -75,12 +75,22 @@ create_rss_item(Title, Desc, URL) ->
     "<item><title>"++
         xmerl_lib:export_text(Title)++"</title>"++
         "<description>"++xmerl_lib:export_text(Desc)++"</description>"++
+	"<pubDate>"++format_utc_timestamp()++"</pubDate>"++
         "<link>"++xmerl_lib:export_text(URL)++"</link></item>".
-    
+
 get_pretty_datetime() ->
     {Year, Month, Day} = date(),
     {Hour, Minutes, _} = time(),
     binary_to_list(iolist_to_binary(io_lib:format("~w/~w/~w ~w:~w GMT+1",[Year, Month, Day, Hour, Minutes]))).
+
+format_utc_timestamp() ->
+    TS = {_,_,_} = os:timestamp(),
+        {{Year,Month,Day},{Hour,Minute,Second}} = 
+	calendar:now_to_universal_time(TS),
+        Mstr = element(Month,{"Jan","Feb","Mar","Apr","May","Jun","Jul",
+			      "Aug","Sep","Oct","Nov","Dec"}),
+        io_lib:format("~2w ~s ~4w ~2w:~2..0w:~2..0w",
+		        [Day,Mstr,Year,Hour,Minute,Second]).
             
 %% example RSS feed I found somewhere:
 
