@@ -4,3 +4,4 @@ glob:rebar
 glob:.eunit/*
 glob:doc/*
 glob:*.dets
+glob:priv/*.xml
