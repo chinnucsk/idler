@@ -34,6 +34,8 @@ handle_msg(Prefix, <<"PRIVMSG">>, [<<"#yfl">>], Tail) ->
     handle_urls(Prefix, Tail);
 handle_msg(Prefix, <<"CTCP">>, [<<"#yfl">>], Tail) ->
     handle_urls(Prefix, Tail);
+handle_msg(Prefix, <<"NOTICE">>, [<<"#yfl">>], Tail) ->
+    handle_urls(Prefix, Tail);
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
