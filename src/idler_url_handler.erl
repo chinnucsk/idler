@@ -108,7 +108,10 @@ format_utc_timestamp() ->
 			      "Aug","Sep","Oct","Nov","Dec"}),
         io_lib:format("~2w ~s ~4w ~2w:~2..0w:~2..0w",
 		        [Day,Mstr,Year,Hour,Minute,Second]).
-            
+
+%% for just getting the headers so we can check for content-type/size:
+%% httpc:request(head, {"http://www.youtube.com",[]},[{autoredirect, true}], []).
+
 %% example RSS feed I found somewhere:
 
 %% <?xml version="1.0"?>
