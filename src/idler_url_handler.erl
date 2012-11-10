@@ -1,4 +1,3 @@
-%%% @author Gert Meulyzer <@G3rtm on Twitter>
 %%% @copyright (C) 2012, Gert Meulyzer
 %%% @doc
 %%% Example module implementation
@@ -10,7 +9,8 @@
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
 
--export([check_for_url/1, type_and_size/1]).
+%% debug exports for testing
+-export([check_for_url/1, type_and_size/1, get_page_title/1]).
 
 -define(Pattern, "(http|ftp|https):\\/\\/[\\w\\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\., @?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?").
 
@@ -35,22 +35,27 @@ handle_msg(_Prefix, <<"PRIVMSG">>, Args, Tail) when byte_size(Tail) > 135 ->
         URL -> idler_connection:reply(self(), Args, tinyurl(URL))
     end;
 handle_msg(Prefix, <<"PRIVMSG">>, [<<"#yfl">>], Tail) ->
-    handle_urls(Prefix, Tail);
+    handle_urls(Prefix, [<<"#yfl">>], Tail);
 handle_msg(Prefix, <<"CTCP">>, [<<"#yfl">>], Tail) ->
-    handle_urls(Prefix, Tail);
+    handle_urls(Prefix, [<<"#yfl">>], Tail);
 handle_msg(Prefix, <<"NOTICE">>, [<<"#yfl">>], Tail) ->
-    handle_urls(Prefix, Tail);
+    handle_urls(Prefix, [<<"#yfl">>], Tail);
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
-
-handle_urls(Prefix, Tail) ->
+handle_urls(Prefix, Args, Tail) ->
     case check_for_url(Tail) of
         [] -> ok;
         [_|_]=L -> [ spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end) ||
                        URL <- L ],
                    ok;
         URL -> spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end),
+               P = self(),
+               spawn(fun() -> case get_page_title(URL) of
+                                  none -> ok;
+                                  Title -> idler_connection:reply(P, Args, Title)
+                              end
+                     end),
                ok
     end.
 
@@ -110,11 +115,34 @@ format_utc_timestamp() ->
                   [Day, Mstr, Year, Hour, Minute, Second]).
 
 type_and_size(Url) ->
-    case httpc:request(head, {Url, []}, [{autoredirect, true}], []) of
+    Resp = httpc:request(head, {Url, []}, [{autoredirect, true}], []),
+    io:format("~p~n",[Resp]),
+    case Resp of
         {ok, {_, Headers, _}} -> {proplists:get_value("content-type", Headers),
                                   proplists:get_value("content-length", Headers)};
         _ -> {undefined, undefined}
     end.
+
+get_page_title(Url) ->
+    Resp = httpc:request(get, {Url, []}, [{autoredirect, true}], []),
+    case Resp of
+        {ok, {_, _, Contents}} -> 
+            {<<"html">>,_,Tags} = mochiweb_html:parse(Contents),
+            [{<<"head">>,_,HeadTags}] = lists:filter(
+              fun(X) -> case X of
+                            {<<"head">>,_,_} -> true;
+                            _ -> false
+                        end end, Tags),
+            [{<<"title">>,_,TitleList}] = lists:filter(
+              fun(X) -> case X of
+                            {<<"title">>,_,_} -> true;
+                            _ -> false
+                            end end, HeadTags),
+            hd(TitleList);
+        _ -> none
+    end.
+
+
 
 %% for just getting the headers so we can check for content-type/size:
 %% httpc:request(head, {"http://www.youtube.com", []}, [{autoredirect, true}], []).
