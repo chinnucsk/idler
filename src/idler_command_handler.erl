@@ -12,7 +12,7 @@
 -compile(export_all).
 
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
-handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\twit ", SearchString/binary>>) ->
+handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\twit ", SearchString/binary>>) ->
     handle_search(Args, SearchString);
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
