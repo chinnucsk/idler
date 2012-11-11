@@ -81,8 +81,12 @@ tinyurl(Url) ->
 
 export_xml_for_url(URL, NickName) ->
     Nick = binary_to_list(NickName),
+    Title = get_page_title(URL),
     file:write_file(code:priv_dir(idler)++"/"++get_timestamp_string()++".xml",
-                    create_rss_item(URL, "Posted by "++Nick++" in YFL on "++get_pretty_datetime(), URL)),
+                    create_rss_item(case Title of
+                                        none -> URL;
+                                        T -> binary_to_list(T)
+                                    end, "Posted by "++Nick++" in YFL on "++get_pretty_datetime(), URL)),
     ok.
 
 get_timestamp_string() ->
@@ -122,6 +126,7 @@ type_and_size(Url) ->
         _ -> {undefined, undefined}
     end.
 
+-spec get_page_title(string() | binary()) -> binary() | none.
 get_page_title(Url) when is_binary(Url) ->
     get_page_title(binary_to_list(Url));
 get_page_title(Url) ->
@@ -145,7 +150,7 @@ get_page_title(Url) ->
                     hd(TitleList);
                 _ -> none
             end;
-        _ -> ok
+        _ -> none
     end.
 
 %% for just getting the headers so we can check for content-type/size:
