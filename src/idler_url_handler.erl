@@ -62,10 +62,13 @@ handle_urls(Prefix, Args, Tail) ->
 check_for_url(Line) ->
     {ok, Regex} = re:compile(?Pattern, [caseless]),
     case re:run(Line, Regex, [{capture, first, binary}]) of
-        {match, [H]} -> H;
+        {match, [H]} -> before_the_spaces(H);
         {match, [_|_]=L} -> L;
         _ -> []
     end.
+
+before_the_spaces(Url) ->
+    hd(binary:split(Url,<<" ">>)).
 
 %% fill up the ets table msgHandlers with for example:
 %% ets:insert(myTable, {<<"blabla">>, {module, func}}).
@@ -102,6 +105,7 @@ create_rss_item(Title, Desc, URL) ->
         "<pubDate>"++format_utc_timestamp()++"</pubDate>"++
         "<link>"++xmerl_lib:export_text(URL)++"</link></item>".
 
+-spec get_pretty_datetime() -> string().
 get_pretty_datetime() ->
     {Year, Month, Day} = date(),
     {Hour, Minutes, _} = time(),
@@ -109,6 +113,7 @@ get_pretty_datetime() ->
     io_lib:format("~w/~w/~w ~w:~w GMT+1", [Year, Month, Day, Hour, Minutes]).
 %%        )).
 
+-spec format_utc_timestamp() -> string().
 format_utc_timestamp() ->
     TS = {_, _, _} = os:timestamp(),
     {{Year, Month, Day}, {Hour, Minute, Second}} =
