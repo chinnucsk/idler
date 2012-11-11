@@ -12,7 +12,7 @@
 %% debug exports for testing
 -export([check_for_url/1, type_and_size/1, get_page_title/1]).
 
--define(Pattern, "(http|ftp|https):\\/\\/[\\w\\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\., @?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?").
+-define(Pattern, "(http|ftp|https):\\/\\/[\\w\\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\.,@?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?").
 %-define(Pattern, "(http|ftp|https):\\/\\/[\\w\\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\., @?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?").
 
 %%-define(Pattern, "/^(https?:\\/\\/)?([\\da-z\\.-]+)\\.([a-z\\.]{2, 6})([\\/\\w \\.-]*)*\\/?$/").
