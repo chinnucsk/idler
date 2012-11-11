@@ -9,5 +9,6 @@
                         idler_connection_sup, idler_connectionhelper, 
                         idler_example_msghandler, idler_ircmsg, 
                         idler_le_handler, idler_morning, idler_msghandler, 
-                        mochinum.erl, mochiutf8.erl, mochiweb_charref.erl, mochiweb_html.erl, 
+                        mochinum, mochiutf8, mochiweb_charref, mochiweb_html,
+                        mochijson, mochijson2, idler_command_handler,
                         idler_sup, idler_url_handler, idler_version]}]}.

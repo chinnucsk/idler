@@ -9,7 +9,6 @@
 -behaviour(idler_msghandler).
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
--compile(export_all).
 
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"Le doc for ", Doc/binary>>) ->
