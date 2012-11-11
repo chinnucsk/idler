@@ -37,6 +37,8 @@ handle_msg(_Prefix, <<"PRIVMSG">>, Args, Tail) when byte_size(Tail) > 135 ->
     end;
 handle_msg(Prefix, <<"PRIVMSG">>, [<<"#yfl">>], Tail) ->
     handle_urls(Prefix, [<<"#yfl">>], Tail);
+handle_msg(Prefix, <<"PRIVMSG">>, [<<"#testerlounge">>], Tail) ->
+    handle_urls(Prefix, [<<"#testerlounge">>], Tail);
 handle_msg(Prefix, <<"CTCP">>, [<<"#yfl">>], Tail) ->
     handle_urls(Prefix, [<<"#yfl">>], Tail);
 handle_msg(Prefix, <<"NOTICE">>, [<<"#yfl">>], Tail) ->
@@ -158,7 +160,8 @@ get_page_title(Url) ->
                     hd(TitleList);
                 _ -> none
             end;
-        _ -> none
+        _ -> io:format("URL not text/html~n"),
+            none
     end.
 
 %% for just getting the headers so we can check for content-type/size:
