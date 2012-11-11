@@ -122,6 +122,8 @@ type_and_size(Url) ->
         _ -> {undefined, undefined}
     end.
 
+get_page_title(Url) when is_binary(Url) ->
+    get_page_title(binary_to_list(Url));
 get_page_title(Url) ->
     {Type, _} = type_and_size(Url),
     case lists:prefix("text/html", Type) of
