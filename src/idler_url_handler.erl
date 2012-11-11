@@ -50,7 +50,8 @@ handle_urls(Prefix, Args, Tail) ->
         [_|_]=L -> [ spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end) ||
                        URL <- L ],
                    ok;
-        URL -> spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end),
+        URL -> io:format("Found URL: ~p~n",[URL]),
+               spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end),
                P = self(),
                spawn(fun() -> case get_page_title(URL) of
                                   none -> ok;
@@ -153,6 +154,7 @@ get_page_title(Url) ->
                                                                   {<<"title">>,_,_} -> true;
                                                                   _ -> false
                                                               end end, HeadTags),
+                    io:format("~p~n",[TitleList]),
                     hd(TitleList);
                 _ -> none
             end;
