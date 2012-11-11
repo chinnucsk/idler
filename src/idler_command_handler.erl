@@ -33,7 +33,7 @@ handle_search(Args, SearchString) ->
 
 reply_with_tweet(Tweet, Pid, Args) ->
     spawn(fun() ->
-                  idler_connection:reply(Pid, Args, list_to_binary(Tweet))
+                  idler_connection:reply(Pid, Args, unicode:characters_to_binary(Tweet))
           end).
 
 get_tweets(JSON) ->
