@@ -116,7 +116,6 @@ format_utc_timestamp() ->
 
 type_and_size(Url) ->
     Resp = httpc:request(head, {Url, []}, [{autoredirect, true}], []),
-    io:format("~p~n",[Resp]),
     case Resp of
         {ok, {_, Headers, _}} -> {proplists:get_value("content-type", Headers),
                                   proplists:get_value("content-length", Headers)};
@@ -124,25 +123,28 @@ type_and_size(Url) ->
     end.
 
 get_page_title(Url) ->
-    Resp = httpc:request(get, {Url, []}, [{autoredirect, true}], []),
-    case Resp of
-        {ok, {_, _, Contents}} -> 
-            {<<"html">>,_,Tags} = mochiweb_html:parse(Contents),
-            [{<<"head">>,_,HeadTags}] = lists:filter(
-              fun(X) -> case X of
-                            {<<"head">>,_,_} -> true;
-                            _ -> false
-                        end end, Tags),
-            [{<<"title">>,_,TitleList}] = lists:filter(
-              fun(X) -> case X of
-                            {<<"title">>,_,_} -> true;
-                            _ -> false
-                            end end, HeadTags),
-            hd(TitleList);
-        _ -> none
+    {Type, _} = type_and_size(Url),
+    case lists:prefix("text/html", Type) of
+        true ->
+            Resp = httpc:request(get, {Url, []}, [{autoredirect, true}], []),
+            case Resp of
+                {ok, {_, _, Contents}} ->
+                    {<<"html">>,_,Tags} = mochiweb_html:parse(Contents),
+                    [{<<"head">>,_,HeadTags}] = lists:filter(
+                                                  fun(X) -> case X of
+                                                                {<<"head">>,_,_} -> true;
+                                                                _ -> false
+                                                            end end, Tags),
+                    [{<<"title">>,_,TitleList}] = lists:filter(
+                                                    fun(X) -> case X of
+                                                                  {<<"title">>,_,_} -> true;
+                                                                  _ -> false
+                                                              end end, HeadTags),
+                    hd(TitleList);
+                _ -> none
+            end;
+        _ -> ok
     end.
-
-
 
 %% for just getting the headers so we can check for content-type/size:
 %% httpc:request(head, {"http://www.youtube.com", []}, [{autoredirect, true}], []).
