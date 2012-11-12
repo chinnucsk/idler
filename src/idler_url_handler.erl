@@ -60,6 +60,8 @@ handle_urls(Prefix, Args, Tail) ->
                                   Title -> idler_connection:reply(P, Args, Title)
                               end
                      end),
+               %% really need a Twitter library instead of this.
+               spawn(fun() -> idler_command_handler:reply_if_single_tweet(URL, Args, P) end),
                ok
     end.
 

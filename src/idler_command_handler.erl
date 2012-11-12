@@ -10,6 +10,9 @@
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
 -compile(export_all).
+-export([reply_if_single_tweet/3]).
+
+-define(SingleTweetPattern, "https://twitter.com/(\\w*)/status/(\\d*)").
 
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\twit ", SearchString/binary>>) ->
@@ -72,3 +75,23 @@ get_usertimeline_tweet({struct, Twt}) ->
     Text = proplists:get_value("text", Twt),
     Name ++ " ("++Nick++"): "++Text.
     
+get_tweet_by_id(Args, ID, Pid) ->
+    URL = "https://api.twitter.com/1/statuses/show.json?id="++binary_to_list(ID),
+    spawn(fun() ->
+                  case httpc:request(URL) of
+                      {error, _} -> ok;
+                      {ok, {_, _, JSON}} ->
+                          TweetStruct = mochijson:decode(JSON),
+                          reply_with_tweet(get_usertimeline_tweet(TweetStruct), Pid, Args)
+                  end
+          end).
+
+reply_if_single_tweet(URL, Args, Pid) ->
+    {ok, Regex} = re:compile(?SingleTweetPattern, [caseless]),
+    case re:run(URL, Regex, [{capture, all_but_first, binary}]) of
+        {match, [_, TweetID]} -> 
+            get_tweet_by_id(Args, TweetID, Pid);
+        _ -> false
+    end.
+
+                       
