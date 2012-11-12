@@ -13,11 +13,13 @@
 
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\twit ", SearchString/binary>>) ->
-    handle_search(Args, SearchString);
+    handle_twitter_search(Args, SearchString);
+handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\@", Username/binary>>) ->
+    handle_twitter_usertimeline(Args, Username);
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
-handle_search(Args, SearchString) ->
+handle_twitter_search(Args, SearchString) ->
     URL = "http://search.twitter.com/search.json?rpp=2&q=" ++
         edoc_lib:escape_uri(binary_to_list(SearchString)),
     case httpc:request(URL) of
@@ -29,7 +31,6 @@ handle_search(Args, SearchString) ->
                           [ reply_with_tweet(Tweet, Pid, Args) || Tweet <- TwtLst ] 
                   end)
     end.
-
 
 reply_with_tweet(Tweet, Pid, Args) ->
     spawn(fun() ->
@@ -48,3 +49,24 @@ tweet_to_line({struct, P}) ->
     Text = proplists:get_value("text", P),
     Name ++ " ("++Nick++"): "++Text.
 
+handle_twitter_usertimeline(Args, Username) ->
+    URL = "https://api.twitter.com/1/statuses/user_timeline.json?count=2&screen_name="++
+%%    URL = "https://api.twitter.com/1.1/statuses/user_timeline.json?count=2&screen_name="++
+        edoc_lib:escape_uri(binary_to_list(Username)),
+    case httpc:request(URL) of
+        {error, _} -> ok;
+        {ok, {_, _, JSON}} -> 
+            {array, TwtList} = mochijson:decode(JSON),
+            Pid = self(),
+            %% [ io:format("~p~n",[Tweet]) 
+            [ spawn(fun() -> reply_with_tweet(Tweet, Pid, Args) end) 
+              || Tweet <- [ get_usertimeline_tweet(Twt) || Twt <- TwtList ]]
+    end.
+    
+get_usertimeline_tweet({struct, Twt}) ->
+    {struct, User} = proplists:get_value("user", Twt),
+    Nick = proplists:get_value("screen_name", User),
+    Name = proplists:get_value("name", User),
+    Text = proplists:get_value("text", Twt),
+    Name ++ " ("++Nick++"): "++Text.
+    
