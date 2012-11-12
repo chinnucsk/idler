@@ -58,9 +58,10 @@ handle_twitter_usertimeline(Args, Username) ->
         {ok, {_, _, JSON}} -> 
             {array, TwtList} = mochijson:decode(JSON),
             Pid = self(),
-            %% [ io:format("~p~n",[Tweet]) 
+            %% [ io:format("~p~n",[Tweet])
+            spawn(fun() ->
             [ spawn(fun() -> reply_with_tweet(Tweet, Pid, Args) end) 
-              || Tweet <- [ get_usertimeline_tweet(Twt) || Twt <- TwtList ]]
+              || Tweet <- [ get_usertimeline_tweet(Twt) || Twt <- TwtList ]] end)
     end.
     
 get_usertimeline_tweet({struct, Twt}) ->
