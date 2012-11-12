@@ -18,7 +18,7 @@ handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
 handle_search(Args, SearchString) ->
-    URL = "http://search.twitter.com/search.json?rpp=2&q=..." ++
+    URL = "http://search.twitter.com/search.json?rpp=2&q=" ++
         edoc_lib:escape_uri(binary_to_list(SearchString)),
     case httpc:request(URL) of
         {error, _} -> ok;
