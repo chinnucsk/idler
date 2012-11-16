@@ -29,7 +29,7 @@ definition(SearchString) ->
             Def = proplists:get_value("Definition", PL),
             Source = proplists:get_value("DefinitionSource", PL),
             case {Def, Source} of
-                {"", ""} -> ok;
+                {"", ""} -> iolist_to_binary(["Cannot find definition for ", SearchString]);
                 {_, ""} -> iolist_to_binary(["{", SearchString, ", \"", Def, "\"}"]);
                 _ -> iolist_to_binary(["{", SearchString, ", \"", Def, " (from ", Source, ")", "\"}"])
             end
