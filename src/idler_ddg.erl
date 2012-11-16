@@ -28,7 +28,7 @@ definition(SearchString) ->
             {struct, PL} = mochijson:decode(Result),
             Def = proplists:get_value("Definition", PL),
             Source = proplists:get_value("DefinitionSource", PL),
-            iolist_to_binary([Def, " (from ", Source, ")"])
+            iolist_to_binary(["{", SearchString, ", \"", Def, " (from ", Source, ")", "\"}"])
     end.
 
 related_topics(Str, Count) when is_binary(Str) ->
@@ -39,7 +39,7 @@ related_topics(Str, Count) ->
         {ok, {_,_, Result}} ->
             {struct, PL} = mochijson:decode(Result),
             {array, Lst} = proplists:get_value("RelatedTopics", PL),
-            [ ?U(Res) || Res <- 
+            [ iolist_to_binary(["{", Str, ", \"", ?U(Res),"\"}"]) || Res <- 
             lists:sublist(
               lists:takewhile(fun(X) -> X =/= undefined end,
                                           [ proplists:get_value("Text", X) || {struct,X} <- Lst]), 
