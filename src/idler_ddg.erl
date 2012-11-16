@@ -31,6 +31,8 @@ definition(SearchString) ->
             iolist_to_binary([Def, " (from ", Source, ")"])
     end.
 
+related_topics(Str, Count) when is_binary(Str) ->
+    related_topics(binary_to_list(Str), Count);
 related_topics(Str, Count) ->
     case httpc:request("http://api.duckduckgo.com/?format=json&q="++edoc_lib:escape_uri(Str)) of
         {error, _} -> none;
