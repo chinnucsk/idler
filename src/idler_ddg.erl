@@ -28,7 +28,11 @@ definition(SearchString) ->
             {struct, PL} = mochijson:decode(Result),
             Def = proplists:get_value("Definition", PL),
             Source = proplists:get_value("DefinitionSource", PL),
-            iolist_to_binary(["{", SearchString, ", \"", Def, " (from ", Source, ")", "\"}"])
+            case {Def, Source} of
+                {"", ""} -> ok;
+                {_, ""} -> iolist_to_binary(["{", SearchString, ", \"", Def, "\"}"]);
+                _ -> iolist_to_binary(["{", SearchString, ", \"", Def, " (from ", Source, ")", "\"}"])
+            end
     end.
 
 related_topics(Str, Count) when is_binary(Str) ->
