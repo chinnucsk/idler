@@ -19,6 +19,8 @@ handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\twit ", SearchString/binary>>) ->
     handle_twitter_search(Args, SearchString);
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\@", Username/binary>>) ->
     handle_twitter_usertimeline(Args, Username);
+handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\def ", SearchString/binary>>) ->
+    handle_def_command(Args, SearchString);
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
@@ -34,6 +36,12 @@ handle_twitter_search(Args, SearchString) ->
                           [ reply_with_tweet(Tweet, Pid, Args) || Tweet <- TwtLst ] 
                   end)
     end.
+
+handle_def_command(Args, SearchString) ->
+    P = self(),
+    spawn(fun() ->
+                  idler_connection:reply(P, Args, idler_ddg:definition(SearchString))
+          end).
 
 reply_with_tweet(Tweet, Pid, Args) ->
     spawn(fun() ->
