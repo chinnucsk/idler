@@ -40,7 +40,7 @@ handle_twitter_search(Args, SearchString) ->
 handle_def_command(Args, SearchString) ->
     P = self(),
     spawn(fun() ->
-                  idler_connection:reply(P, Args, idler_ddg:definition(SearchString))
+                  [ idler_connection:reply(P, Args, X) || X <- idler_ddg:related_topics(SearchString, 3) ]
           end).
 
 reply_with_tweet(Tweet, Pid, Args) ->

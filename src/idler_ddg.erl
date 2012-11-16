@@ -9,14 +9,14 @@
 -include("../include/idler_irc.hrl").
 
 %% debug exports
--export([definition/1]).
+-export([definition/1, related_topics/2]).
 -define(U(X), unicode:characters_to_binary(X)).
 
 %% various stuff I'll need later:
 %% edoc_lib:escape_uri/1
 %% http://api.duckduckgo.com/?q=<STRING>&format=json
 %% mochijson:decode(STRING)
-%% 
+%%
 
 -spec definition(string() | binary()) -> binary().
 definition(SearchString) when is_binary(SearchString) ->
@@ -24,9 +24,22 @@ definition(SearchString) when is_binary(SearchString) ->
 definition(SearchString) ->
     case httpc:request("http://api.duckduckgo.com/?format=json&q="++edoc_lib:escape_uri(SearchString)) of
         {error, _} -> none;
-        {ok, {_,_, Result}} -> 
-            {struct, PL} = mochijson2:decode(Result),
-            Def = ?U(proplists:get_value(<<"Definition">>, PL)),
-            Source = ?U(proplists:get_value(<<"DefinitionSource">>, PL)),
-            iolist_to_binary([Def, <<" (from ">>, Source, <<")">>])
+        {ok, {_,_, Result}} ->
+            {struct, PL} = mochijson:decode(Result),
+            Def = proplists:get_value("Definition", PL),
+            Source = proplists:get_value("DefinitionSource", PL),
+            iolist_to_binary([Def, " (from ", Source, ")"])
+    end.
+
+related_topics(Str, Count) ->
+    case httpc:request("http://api.duckduckgo.com/?format=json&q="++edoc_lib:escape_uri(Str)) of
+        {error, _} -> none;
+        {ok, {_,_, Result}} ->
+            {struct, PL} = mochijson:decode(Result),
+            {array, Lst} = proplists:get_value("RelatedTopics", PL),
+            [ ?U(Res) || Res <- 
+            lists:sublist(
+              lists:takewhile(fun(X) -> X =/= undefined end,
+                                          [ proplists:get_value("Text", X) || {struct,X} <- Lst]), 
+              Count) ]
     end.
