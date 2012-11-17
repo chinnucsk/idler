@@ -46,6 +46,6 @@ related_topics(Str, Count) ->
             [ iolist_to_binary(["{", Str, ", \"", ?U(Res),"\"}"]) || Res <- 
             lists:sublist(
               lists:takewhile(fun(X) -> X =/= undefined end,
-                                          [ proplists:get_value("Text", X) || {struct,X} <- Lst]), 
+                              [ proplists:get_value("Text", X) || {struct,X} <- Lst]), 
               Count) ]
     end.
