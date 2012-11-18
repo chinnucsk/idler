@@ -40,7 +40,7 @@ handle_twitter_search(Args, SearchString) ->
 handle_def_command(Args, SearchString) ->
     P = self(),
     spawn(fun() ->
-                  case idler_ddg:related_topics(SearchString, 3) of
+                  case idler_ddg:related_topics(SearchString, 2) of
                       [] -> idler_connection:reply(P, Args, idler_ddg:definition(SearchString));
                       Lst -> [ idler_connection:reply(P, Args, X) || X <- Lst ]
                   end
