@@ -24,6 +24,7 @@ handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\def ", SearchString/binary>>) ->
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
+-spec handle_twitter_search([binary()], binary()) -> ok.
 handle_twitter_search(Args, SearchString) ->
     URL = "http://search.twitter.com/search.json?rpp=2&q=" ++
         edoc_lib:escape_uri(binary_to_list(SearchString)),
@@ -34,9 +35,11 @@ handle_twitter_search(Args, SearchString) ->
             Pid = self(),
             spawn(fun() -> 
                           [ reply_with_tweet(Tweet, Pid, Args) || Tweet <- TwtLst ] 
-                  end)
+                  end),
+            ok
     end.
 
+-spec handle_def_command([binary()], binary()) -> ok.
 handle_def_command(Args, SearchString) ->
     P = self(),
     spawn(fun() ->
@@ -44,25 +47,31 @@ handle_def_command(Args, SearchString) ->
                       [] -> idler_connection:reply(P, Args, idler_ddg:definition(SearchString));
                       Lst -> [ idler_connection:reply(P, Args, X) || X <- Lst ]
                   end
-          end).
+          end),
+    ok.
 
+-spec reply_with_tweet(string(), pid(), [binary()]) -> ok.
 reply_with_tweet(Tweet, Pid, Args) ->
     spawn(fun() ->
                   idler_connection:reply(Pid, Args, unicode:characters_to_binary(Tweet))
-          end).
+          end),
+    ok.
 
+-spec get_tweets(string()) -> [string()].
 get_tweets(JSON) ->
     P = mochijson:decode(JSON),
     {struct, PropList} = P,
     {array, TwtLst} = proplists:get_value("results", PropList),
     [ tweet_to_line(T) || T <- TwtLst ].
 
+-spec tweet_to_line({'struct', [any()]}) -> string().
 tweet_to_line({struct, P}) ->
     Nick = proplists:get_value("from_user", P),
     Name = proplists:get_value("from_user_name", P),
     Text = proplists:get_value("text", P),
     Name ++ " ("++Nick++"): "++Text.
 
+-spec handle_twitter_usertimeline([binary()], binary()) -> ok.
 handle_twitter_usertimeline(Args, Username) ->
     Pid = self(),
     spawn(fun() ->
@@ -77,8 +86,10 @@ handle_twitter_usertimeline(Args, Username) ->
                           [ spawn(fun() -> reply_with_tweet(Tweet, Pid, Args) end) 
                             || Tweet <- [ get_usertimeline_tweet(Twt) || Twt <- TwtList ]]
                   end
-          end).
+          end),
+    ok.
     
+-spec get_usertimeline_tweet({'struct', [any()]}) -> string().
 get_usertimeline_tweet({struct, Twt}) ->
     {struct, User} = proplists:get_value("user", Twt),
     Nick = proplists:get_value("screen_name", User),
@@ -86,6 +97,7 @@ get_usertimeline_tweet({struct, Twt}) ->
     Text = proplists:get_value("text", Twt),
     Name ++ " ("++Nick++"): "++Text.
     
+-spec get_tweet_by_id([binary()], binary(), pid()) -> ok.
 get_tweet_by_id(Args, ID, Pid) ->
     URL = "https://api.twitter.com/1/statuses/show.json?id="++binary_to_list(ID),
     spawn(fun() ->
@@ -95,8 +107,10 @@ get_tweet_by_id(Args, ID, Pid) ->
                           TweetStruct = mochijson:decode(JSON),
                           reply_with_tweet(get_usertimeline_tweet(TweetStruct), Pid, Args)
                   end
-          end).
+          end),
+    ok.
 
+-spec reply_if_single_tweet(binary(), [binary()], pid()) -> ok | false.
 reply_if_single_tweet(URL, Args, Pid) ->
     {ok, Regex} = re:compile(?SingleTweetPattern, [caseless]),
     case re:run(URL, Regex, [{capture, all_but_first, binary}]) of

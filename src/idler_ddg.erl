@@ -35,6 +35,7 @@ definition(SearchString) ->
             end
     end.
 
+-spec related_topics(string() | binary(), integer()) -> 'none' | binary().
 related_topics(Str, Count) when is_binary(Str) ->
     related_topics(binary_to_list(Str), Count);
 related_topics(Str, Count) ->

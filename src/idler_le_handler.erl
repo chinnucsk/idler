@@ -56,6 +56,7 @@ url_exists(Url) ->
         _ -> true
     end.
 
+-spec reformat(binary()) -> 'none' | binary().
 reformat(Doc) ->
     Pattern="^(\\w+):(\\w+)/(\\d+)$",
     {ok,Regex} = re:compile(Pattern, []),
