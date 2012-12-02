@@ -27,7 +27,7 @@ handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"Le doc for ", Doc/binary>>) ->
     handle_search(Args, Doc);
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"le doc for ", Doc/binary>>) ->   
     handle_search(Args, Doc);
-handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\erldoc ", Doc/binary>>) ->   
+handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\erldoc ", Doc/binary>>) ->   
     handle_search(Args, Doc);
 handle_msg(_Prefix, <<"CTCP">>, Args, <<"ACTION searches for ", Doc/binary>>) ->
     handle_search(Args, Doc);
