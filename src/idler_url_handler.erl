@@ -68,13 +68,15 @@ handle_urls(Prefix, Args, Tail) ->
         URL -> io:format("Found URL: ~p~n",[URL]),
                spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end),
                P = self(),
-               spawn(fun() -> case get_page_title(URL) of
-                                  none -> ok;
-                                  Title -> idler_connection:reply(P, Args, Title)
-                              end
+               spawn(fun() -> case idler_command_handler:reply_if_single_tweet(URL, Args, P) of
+                                  ok -> ok;
+                                  false ->
+                                      case get_page_title(URL) of
+                                          none -> ok;
+                                          Title -> idler_connection:reply(P, Args, Title)
+                                      end
+                              end  
                      end),
-               %% really need a Twitter library instead of this.
-               spawn(fun() -> idler_command_handler:reply_if_single_tweet(URL, Args, P) end),
                ok
     end.
 
