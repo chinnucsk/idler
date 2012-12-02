@@ -23,12 +23,7 @@
 -export([handle_msg/4]).
 
 %% debug exports for testing
--export([check_for_url/1, type_and_size/1, get_page_title/1]).
-
--define(Pattern, "(http|ftp|https):\\/\\/[\\w\\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\., @?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?").
-%-define(Pattern, "(http|ftp|https):\\/\\/[\\w\\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\., @?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?").
-
-%%-define(Pattern, "/^(https?:\\/\\/)?([\\da-z\\.-]+)\\.([a-z\\.]{2, 6})([\\/\\w \\.-]*)*\\/?$/").
+-export([type_and_size/1, get_page_title/1]).
 
 %% @doc
 %% Prefix is the part that contains the nickname and host on most messages
@@ -43,11 +38,6 @@
 %% Tail is the actual message. The things people type in IRC are here.
 %% @end
 -spec handle_msg(binary(), binary(), [binary()], binary()) -> ok.
-handle_msg(_Prefix, <<"PRIVMSG">>, Args, Tail) when byte_size(Tail) > 135 ->
-    case check_for_url(Tail) of
-        [] -> ok;
-        URL -> idler_connection:reply(self(), Args, tinyurl(URL))
-    end;
 handle_msg(Prefix, <<"PRIVMSG">>, [<<"#yfl">>], Tail) ->
     handle_urls(Prefix, [<<"#yfl">>], Tail);
 handle_msg(Prefix, <<"PRIVMSG">>, [<<"#testerlounge">>], Tail) ->
@@ -59,38 +49,28 @@ handle_msg(Prefix, <<"NOTICE">>, [<<"#yfl">>], Tail) ->
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
+-spec handle_urls(binary(), [binary()], binary()) -> ok.
 handle_urls(Prefix, Args, Tail) ->
-    case check_for_url(Tail) of
-        [] -> ok;
-        [_|_]=L -> [ spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end) ||
-                       URL <- L ],
-                   ok;
-        URL -> io:format("Found URL: ~p~n",[URL]),
-               spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end),
-               P = self(),
-               spawn(fun() -> case idler_command_handler:reply_if_single_tweet(URL, Args, P) of
-                                  ok -> ok;
-                                  false ->
-                                      case get_page_title(URL) of
-                                          none -> ok;
-                                          Title -> idler_connection:reply(P, Args, Title)
-                                      end
-                              end  
-                     end),
-               ok
-    end.
+    [ process_url(Prefix, Args, URL) || URL <- idler_helpers:get_urls(Tail) ].
 
-check_for_url(Line) ->
-    {ok, Regex} = re:compile(?Pattern, [caseless]),
-    case re:run(Line, Regex, [{capture, first, binary}]) of
-        {match, [H]} -> before_the_spaces(H);
-        {match, [_|_]=L} -> L;
-        _ -> []
-    end.
-
-before_the_spaces(Url) ->
-    hd(binary:split(Url,<<" ">>)).
-
+-spec process_url(binary(), [binary()], binary()) -> ok.
+process_url(Prefix, Args, URL) ->
+    P = self(),
+    case byte_size(URL) > 100 of
+        true -> idler_connection:reply(self(), Args, tinyurl(URL));
+        _ -> ok
+    end,
+    spawn(fun() -> export_xml_for_url(URL, idler_ircmsg:nick_from_prefix(Prefix)) end),
+    spawn(fun() -> case idler_command_handler:reply_if_single_tweet(URL, Args, P) of
+                       ok -> ok;
+                       false ->
+                           case get_page_title(URL) of
+                               none -> ok;
+                               Title -> idler_connection:reply(P, Args, Title)
+                           end
+                   end  
+          end).
+    
 %% fill up the ets table msgHandlers with for example:
 %% ets:insert(myTable, {<<"blabla">>, {module, func}}).
 %% what way we can make automatic handlers.

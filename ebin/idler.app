@@ -11,4 +11,4 @@
                         idler_le_handler, idler_morning, idler_msghandler, 
                         mochinum, mochiutf8, mochiweb_charref, mochiweb_html,
                         mochijson, mochijson2, idler_command_handler,
-                        idler_sup, idler_url_handler, idler_version]}]}.
+                        idler_sup, idler_url_handler, idler_version, idler_helpers]}]}.
