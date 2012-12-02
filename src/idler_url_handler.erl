@@ -153,6 +153,23 @@ type_and_size(Url) ->
     end.
 
 -spec get_page_title(string() | binary()) -> binary() | none.
+get_page_title(<<"http://192.168.", _/binary>>) ->
+    none;
+get_page_title(<<"https://192.168.", _/binary>>) ->
+    none;
+get_page_title(<<"http://localhost", _/binary>>) ->
+    none;
+get_page_title(<<"https://localhost", _/binary>>) ->
+    none;
+get_page_title(<<"http://10.", _/binary>>) ->
+    none;
+get_page_title(<<"https://10.", _/binary>>) ->
+    none;
+%% I know, lazy. I'll make a better 'is_private_ip' function later.
+get_page_title(<<"http://172.", _/binary>>) ->
+    none;
+get_page_title(<<"https://172.", _/binary>>) ->
+    none;
 get_page_title(Url) when is_binary(Url) ->
     get_page_title(binary_to_list(Url));
 get_page_title(Url) ->
