@@ -21,7 +21,7 @@
 -behaviour(idler_msghandler).
 -include("../include/idler_irc.hrl").
 -export([handle_msg/4]).
--compile(export_all).
+
 -export([reply_if_single_tweet/3]).
 
 -define(SingleTweetPattern, "https://twitter.com/(\\w*)/status/(\\d*)").
@@ -88,13 +88,11 @@ handle_twitter_usertimeline(Args, Username) ->
     Pid = self(),
     spawn(fun() ->
                   URL = "https://api.twitter.com/1/statuses/user_timeline.json?count=2&screen_name="++
-                      %%    URL = "https://api.twitter.com/1.1/statuses/user_timeline.json?count=2&screen_name="++
                       edoc_lib:escape_uri(binary_to_list(Username)),
                   case httpc:request(URL) of
                       {error, _} -> ok;
                       {ok, {_, _, JSON}} -> 
                           {array, TwtList} = mochijson:decode(JSON),
-                          %% [ io:format("~p~n",[Tweet])
                           [ spawn(fun() -> reply_with_tweet(Tweet, Pid, Args) end) 
                             || Tweet <- [ get_usertimeline_tweet(Twt) || Twt <- TwtList ]]
                   end
