@@ -51,6 +51,7 @@ rss_filename() ->
 
 %% load previous list of items from the local dump
 create_xml_file() ->
+    io:format("Creating XML file at "++rss_filename()),
     {ok, Terms} = file:consult(termstorage_file()),
     TotalRss = rss_term(Terms),
     file:write_file(rss_filename(), xmerl:export_simple([TotalRss], xmerl_xml)).
