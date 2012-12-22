@@ -87,11 +87,11 @@ export_xml_for_url(URL, NickName) ->
     Nick = binary_to_list(NickName),
     Title = get_page_title(URL),
     idler_rss:store_and_publish(case Title of
-                                        none -> URL;
+                                        none -> binary_to_list(URL);
                                         T -> binary_to_list(T)
                                 end,
                                 "Posted by "++Nick++" in #YFL on "++idler_rss:utcnow(),
-                                URL),
+                                binary_to_list(URL)),
     ok.
 
 type_and_size(Url) ->
