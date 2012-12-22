@@ -5,7 +5,7 @@
               {applications, [kernel, stdlib]}, 
               {mod, {idler_app, []}}, 
               {env, []}, 
-              {modules, [idler_app, idler_config, idler_connection, 
+              {modules, [idler_app, idler_config, idler_connection, idler_rss,
                         idler_connection_sup, idler_connectionhelper, 
                         idler_example_msghandler, idler_ircmsg, idler_ddg,
                         idler_le_handler, idler_morning, idler_msghandler, 
