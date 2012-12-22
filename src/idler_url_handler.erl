@@ -86,43 +86,13 @@ tinyurl(Url) ->
 export_xml_for_url(URL, NickName) ->
     Nick = binary_to_list(NickName),
     Title = get_page_title(URL),
-    file:write_file(code:priv_dir(idler)++"/"++get_timestamp_string()++".xml",
-                    create_rss_item(case Title of
+    idler_rss:store_and_publish(case Title of
                                         none -> URL;
                                         T -> binary_to_list(T)
-                                    end, "Posted by "++Nick++" in YFL on "++get_pretty_datetime(), URL)),
+                                end,
+                                "Posted by "++Nick++" in #YFL on "++idler_rss:utcnow(),
+                                URL),
     ok.
-
-get_timestamp_string() ->
-    {A, B, C} = os:timestamp(),
-    [D, E, F] = io_lib:format("~p~p~p", [A, B, C]),
-    D++E++F.
-
--spec create_rss_item(Title :: string(), Desc :: string(), URL :: string()) -> string().
-create_rss_item(Title, Desc, URL) ->
-    "<item><title>"++
-        xmerl_lib:export_text(Title)++"</title>"++
-        "<description>"++xmerl_lib:export_text(Desc)++"</description>"++
-        "<pubDate>"++format_utc_timestamp()++"</pubDate>"++
-        "<link>"++xmerl_lib:export_text(URL)++"</link></item>".
-
--spec get_pretty_datetime() -> string().
-get_pretty_datetime() ->
-    {Year, Month, Day} = date(),
-    {Hour, Minutes, _} = time(),
-    %%    binary_to_list(iolist_to_binary(
-    io_lib:format("~w/~w/~w ~w:~w GMT+1", [Year, Month, Day, Hour, Minutes]).
-%%        )).
-
--spec format_utc_timestamp() -> string().
-format_utc_timestamp() ->
-    TS = {_, _, _} = os:timestamp(),
-    {{Year, Month, Day}, {Hour, Minute, Second}} =
-        calendar:now_to_universal_time(TS),
-    Mstr = element(Month, {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
-                           "Aug", "Sep", "Oct", "Nov", "Dec"}),
-    io_lib:format("~2w ~s ~4w ~2w:~2..0w:~2..0w",
-                  [Day, Mstr, Year, Hour, Minute, Second]).
 
 type_and_size(Url) ->
     Resp = httpc:request(head, {Url, []}, [{autoredirect, true}], []),

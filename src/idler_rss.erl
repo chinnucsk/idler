@@ -21,7 +21,7 @@
 -module(idler_rss).
 
 -export([item_node/3, item_node/4, store/3, create_xml_file/0,
-        store_and_publish/3]).
+        store_and_publish/3, utcnow/0]).
 
 %% need to create a file with all the rss feed entries as erlang terms.
 %% or separate files for each entry?
