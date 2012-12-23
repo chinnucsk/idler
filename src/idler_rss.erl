@@ -33,14 +33,23 @@ item_node(Title, Desc, URL) ->
 item_node(Title, Desc, URL, Date) ->
     {item, [], [{title, [], [Title]},
                 {pubDate, [], [Date]},
+                {guid, [], [Date]},
                 {description, [], [Desc]},
                 {link, [], [URL]}]}.
 
 utcnow() ->
     httpd_util:rfc1123_date(erlang:localtime_to_universaltime(erlang:localtime())).
 
+required_channel_items() ->
+    [ {title, [], ["You Fancy Languages? link aggregation feed"]},
+      {link, [], ["http://yfl.bahmanm.com"]},
+      {description, [], ["All the links that are pasted in the channel. The IRC bot named 'dingd1ng' picks them up and creates this feed."]},
+      {pubDate, [], [utcnow()]},
+      {generator, [], ["Idler IRC bot: http://bitbucket.org/gertm/idler/"]} ].
+
 rss_term(ItemList) ->
-    {rss, [{version, "2.0"}], [{pubDate, [], [utcnow()]}, {channel, [], ItemList}]}.
+    Items = lists:append(required_channel_items(), ItemList),
+    {rss, [{version, "2.0"}], [{pubDate, [], [utcnow()]}, {channel, [], Items}]}.
 
 
 termstorage_file() ->
