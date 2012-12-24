@@ -19,4 +19,3 @@
 
 -module(idler_db_init).
 
-

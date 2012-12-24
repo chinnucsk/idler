@@ -33,6 +33,10 @@ handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\@", Username/binary>>) ->
     handle_twitter_usertimeline(Args, Username);
 handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\def ", SearchString/binary>>) ->
     handle_def_command(Args, SearchString);
+handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<",bb 15">>) ->
+    idler_connection:reply(self(), Args, <<"This command has been replaced by \\bb.">>);
+handle_msg(_Prefix, <<"PRIVMSG">>, Args, <<"\\bb ", BB/binary>>) ->
+    handle_bb(Args, BB);
 handle_msg(_Prefix, _Command, _Args, _Tail) ->
     ok.
 
@@ -130,3 +134,12 @@ reply_if_single_tweet(URL, Args, Pid) ->
     end.
 
                        
+handle_bb(Args, BB) ->
+    P = self(),
+    spawn(fun() ->
+                  Nr = list_to_integer(binary_to_list(BB)),
+                  case idler_bb:get_post_by_number(Nr) of
+                      none -> ok;
+                      R -> idler_connection:reply(P, Args, R)
+                  end
+          end).
