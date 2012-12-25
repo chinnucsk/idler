@@ -93,7 +93,7 @@ export_xml_for_url(URL, NickName) ->
                                 case Title of
                                     <<"Picture">> -> "<img src=\""++binary_to_list(URL)++
                                                          "\" alt=\""++"Posted by "++Nick++
-                                                         " in #YFL on "++idler_rss:utcnow()++"/>";
+                                                         " in #YFL on "++idler_rss:utcnow()++"\"/>";
                                     _ -> "Posted by "++Nick++" in #YFL on "++idler_rss:utcnow()
                                 end,
                                 binary_to_list(URL)),
