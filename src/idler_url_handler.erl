@@ -94,6 +94,7 @@ export_xml_for_url(URL, NickName) ->
                                     <<"Picture">> -> "<img src=\""++binary_to_list(URL)++
                                                          "\" alt=\""++"Posted by "++Nick++
                                                          " in #YFL on "++idler_rss:utcnow()++"\"/>";
+                                    <<"Video">> -> "<video src=\""++URL++"\" controls/>";
                                     _ -> "Posted by "++Nick++" in #YFL on "++idler_rss:utcnow()
                                 end,
                                 binary_to_list(URL)),
@@ -128,9 +129,10 @@ get_page_title(<<"https://172.", _/binary>>) ->
 get_page_title(Url) when is_binary(Url) ->
     get_page_title(binary_to_list(Url));
 get_page_title(Url) ->
-    {Type, _} = type_and_size(Url),
-    case lists:prefix("text/html", Type) of
-        true ->
+    {T, _} = type_and_size(Url),
+    Type = string:tokens(T,"/"),
+    case Type of
+        ["text","html"] ->
             Resp = httpc:request(get, {Url, []}, [{autoredirect, true}], []),
             case Resp of
                 {ok, {_, _, Contents}} ->
@@ -149,38 +151,10 @@ get_page_title(Url) ->
                     hd(TitleList);
                 _ -> none
             end;
-        _ -> case lists:prefix("image/", Type) of
-                 true -> <<"Picture">>;
-                 _ -> none
-             end
+        ["image", _] ->
+            <<"Picture">>;
+        ["video", _] ->
+            <<"Video">>
     end.
 
 
-
-%% for just getting the headers so we can check for content-type/size:
-%% httpc:request(head, {"http://www.youtube.com", []}, [{autoredirect, true}], []).
-
-%% example RSS feed I found somewhere:
-
-%% <?xml version="1.0"?>
-%% <rss version="2.0">
-%% <channel>
-
-%% <title>The Channel Title Goes Here</title>
-%% <description>The explanation of how the items are related goes here</description>
-%% <link>http://www.directoryoflinksgohere</link>
-
-%% <item>
-%% <title>The Title Goes Here</title>
-%% <description>The description goes here</description>
-%% <link>http://www.linkgoeshere.com</link>
-%% </item>
-
-%% <item>
-%% <title>Another Title Goes Here</title>
-%% <description>Another description goes here</description>
-%% <link>http://www.anotherlinkgoeshere.com</link>
-%% </item>
-
-%% </channel>
-%% </rss>
