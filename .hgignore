@@ -6,3 +6,4 @@ glob:doc/*
 glob:*.dets
 glob:priv/*.xml
 glob:priv/*.XML
+glob:priv/*.terms
