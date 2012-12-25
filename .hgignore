@@ -7,3 +7,4 @@ glob:*.dets
 glob:priv/*.xml
 glob:priv/*.XML
 glob:deps/*
+glob:priv/*.terms
