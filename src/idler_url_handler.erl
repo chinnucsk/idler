@@ -87,10 +87,15 @@ export_xml_for_url(URL, NickName) ->
     Nick = binary_to_list(NickName),
     Title = get_page_title(URL),
     idler_rss:store_and_publish(case Title of
-                                        none -> binary_to_list(URL);
-                                        T -> binary_to_list(T)
+                                    none -> binary_to_list(URL);
+                                    T -> binary_to_list(T)
                                 end,
-                                "Posted by "++Nick++" in #YFL on "++idler_rss:utcnow(),
+                                case Title of
+                                    <<"Picture">> -> "<img src=\""++binary_to_list(URL)++
+                                                         "\" alt=\""++"Posted by "++Nick++
+                                                         " in #YFL on "++idler_rss:utcnow()++"/>";
+                                    _ -> "Posted by "++Nick++" in #YFL on "++idler_rss:utcnow()
+                                end,
                                 binary_to_list(URL)),
     ok.
 
@@ -144,9 +149,13 @@ get_page_title(Url) ->
                     hd(TitleList);
                 _ -> none
             end;
-        _ -> io:format("URL not text/html~n"),
-            none
+        _ -> case lists:prefix("image/", Type) of
+                 true -> <<"Picture">>;
+                 _ -> none
+             end
     end.
+
+
 
 %% for just getting the headers so we can check for content-type/size:
 %% httpc:request(head, {"http://www.youtube.com", []}, [{autoredirect, true}], []).
