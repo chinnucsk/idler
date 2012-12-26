@@ -133,9 +133,9 @@ get_page_title(Url) ->
     Type = string:tokens(T,"/"),
     case Type of
         ["text", H] ->
-            case lists:prefix("html",H) of
+            case lists:prefix("html", H) of
                 true ->
-            Resp = httpc:request(get, {Url, []}, [{autoredirect, true}], []),
+                    Resp = httpc:request(get, {Url, [{"User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:17.0) Gecko/20100101 Firefox/17.0"}]}, [{autoredirect, true}], []),
                     case Resp of
                         {ok, {_, _, Contents}} ->
                             {<<"html">>,_,Tags} = mochiweb_html:parse(Contents),
@@ -158,7 +158,8 @@ get_page_title(Url) ->
         ["image", _] ->
             <<"Picture">>;
         ["video", _] ->
-            <<"Video">>
+            <<"Video">>;
+        [] -> none
     end.
 
 

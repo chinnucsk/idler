@@ -9,3 +9,4 @@
                        nick="dingd1ng",
                        channels=[],
                        modules=[]}).
+-define(PRINT(Term), io:format("~p~n",[Term])).
