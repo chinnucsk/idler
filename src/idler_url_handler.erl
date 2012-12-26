@@ -132,23 +132,27 @@ get_page_title(Url) ->
     {T, _} = type_and_size(Url),
     Type = string:tokens(T,"/"),
     case Type of
-        ["text","html"] ->
+        ["text", H] ->
+            case lists:prefix("html",H) of
+                true ->
             Resp = httpc:request(get, {Url, []}, [{autoredirect, true}], []),
-            case Resp of
-                {ok, {_, _, Contents}} ->
-                    {<<"html">>,_,Tags} = mochiweb_html:parse(Contents),
-                    [{<<"head">>,_,HeadTags}] = lists:filter(
-                                                  fun(X) -> case X of
-                                                                {<<"head">>,_,_} -> true;
-                                                                _ -> false
-                                                            end end, Tags),
-                    [{<<"title">>,_,TitleList}] = lists:filter(
-                                                    fun(X) -> case X of
-                                                                  {<<"title">>,_,_} -> true;
-                                                                  _ -> false
-                                                              end end, HeadTags),
-                    io:format("~p~n",[TitleList]),
-                    hd(TitleList);
+                    case Resp of
+                        {ok, {_, _, Contents}} ->
+                            {<<"html">>,_,Tags} = mochiweb_html:parse(Contents),
+                            [{<<"head">>,_,HeadTags}] = lists:filter(
+                                                          fun(X) -> case X of
+                                                                        {<<"head">>,_,_} -> true;
+                                                                        _ -> false
+                                                                    end end, Tags),
+                            [{<<"title">>,_,TitleList}] = lists:filter(
+                                                            fun(X) -> case X of
+                                                                          {<<"title">>,_,_} -> true;
+                                                                          _ -> false
+                                                                      end end, HeadTags),
+                            io:format("~p~n",[TitleList]),
+                            hd(TitleList);
+                        _ -> none
+                    end;
                 _ -> none
             end;
         ["image", _] ->
