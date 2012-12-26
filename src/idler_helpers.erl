@@ -19,7 +19,7 @@
 %%% Created :  2 Dec 2012 by Gert Meulyzer <@G3rtm on Twitter>
 
 -module(idler_helpers).
--export([get_urls/1, http_get/1, http_head/1]).
+-export([get_urls/1, http_get/1, http_head/1, module_exists/1]).
 
 -spec get_urls(binary()) -> [binary()].
 get_urls(Bin) ->
@@ -37,3 +37,18 @@ http_get(Url) ->
 -spec http_head(string()) -> any().
 http_head(Url) ->
     httpc:request(head, {Url, [{"User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:17.0) Gecko/20100101 Firefox/17.0"}]}, [{autoredirect, true}], []).
+
+-spec module_exists(module()) -> boolean().
+module_exists(Module) ->
+    case is_atom(Module) of
+        true ->
+            try Module:module_info() of
+                _InfoList ->
+                    true
+            catch
+                _:_ ->
+                    false
+            end;
+        false ->
+            false
+    end.

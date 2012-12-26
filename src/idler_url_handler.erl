@@ -66,6 +66,8 @@ process_url(Prefix, Args, URL) ->
                        false ->
                            case get_page_title(URL) of
                                none -> ok;
+                               <<"Picture">> -> ok;
+                               <<"Video">> -> ok;
                                Title -> idler_connection:reply(P, Args, Title)
                            end
                    end
@@ -88,6 +90,8 @@ export_xml_for_url(URL, NickName) ->
     Title = get_page_title(URL),
     idler_rss:store_and_publish(case Title of
                                     none -> binary_to_list(URL);
+                                    <<"Picture">> -> binary_to_list(URL);
+                                    <<"Video">> -> binary_to_list(URL);
                                     T -> binary_to_list(T)
                                 end,
                                 case Title of
