@@ -34,7 +34,7 @@
 definition(SearchString) when is_binary(SearchString) ->
     definition(binary_to_list(SearchString));
 definition(SearchString) ->
-    case httpc:request("http://api.duckduckgo.com/?format=json&q="++edoc_lib:escape_uri(SearchString)) of
+    case idlers_helpers:http_get("http://api.duckduckgo.com/?format=json&q="++edoc_lib:escape_uri(SearchString)) of
         {error, _} -> none;
         {ok, {_,_, Result}} ->
             {struct, PL} = mochijson:decode(Result),
@@ -51,7 +51,7 @@ definition(SearchString) ->
 related_topics(Str, Count) when is_binary(Str) ->
     related_topics(binary_to_list(Str), Count);
 related_topics(Str, Count) ->
-    case httpc:request("http://api.duckduckgo.com/?format=json&q="++edoc_lib:escape_uri(Str)) of
+    case idler_helpers:http_get("http://api.duckduckgo.com/?format=json&q="++edoc_lib:escape_uri(Str)) of
         {error, _} -> none;
         {ok, {_,_, Result}} ->
             {struct, PL} = mochijson:decode(Result),

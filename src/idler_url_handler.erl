@@ -78,7 +78,7 @@ process_url(Prefix, Args, URL) ->
 
 tinyurl(Url) ->
     %% http://tinyurl.com/api-create.php?url=http://scripting.com/
-    case httpc:request("http://tinyurl.com/api-create.php?url="++edoc_lib:escape_uri(binary_to_list(Url))) of
+    case idler_helpers:http_get("http://tinyurl.com/api-create.php?url="++edoc_lib:escape_uri(binary_to_list(Url))) of
         {error, _} -> ok;
         {ok, {_, _, TinyUrl}} -> list_to_binary(TinyUrl)
     end.
@@ -101,7 +101,7 @@ export_xml_for_url(URL, NickName) ->
     ok.
 
 type_and_size(Url) ->
-    Resp = httpc:request(head, {Url, []}, [{autoredirect, true}], []),
+    Resp = idler_helpers:http_head(Url),
     case Resp of
         {ok, {_, Headers, _}} -> {proplists:get_value("content-type", Headers),
                                   proplists:get_value("content-length", Headers)};
@@ -135,7 +135,7 @@ get_page_title(Url) ->
         ["text", H] ->
             case lists:prefix("html", H) of
                 true ->
-                    Resp = httpc:request(get, {Url, [{"User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:17.0) Gecko/20100101 Firefox/17.0"}]}, [{autoredirect, true}], []),
+                    Resp = idler_helpers:http_get(Url),
                     case Resp of
                         {ok, {_, _, Contents}} ->
                             {<<"html">>,_,Tags} = mochiweb_html:parse(Contents),

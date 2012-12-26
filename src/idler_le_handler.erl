@@ -62,7 +62,7 @@ erlang_doc_url(Doc) ->
     
 -spec url_exists(string()) -> boolean().
 url_exists(Url) ->
-    case httpc:request(Url) of
+    case idler_helpers:http_get(Url) of
         {error, _} -> false;
         {ok, {{_, 404, _}, _, _}} -> false;
         _ -> true

@@ -44,7 +44,7 @@ handle_msg(_Prefix, _Command, _Args, _Tail) ->
 handle_twitter_search(Args, SearchString) ->
     URL = "http://search.twitter.com/search.json?rpp=2&q=" ++
         edoc_lib:escape_uri(binary_to_list(SearchString)),
-    case httpc:request(URL) of
+    case idler_helpers:http_get(URL) of
         {error, _} -> ok;
         {ok, {_, _, JSON}} -> 
             TwtLst = get_tweets(JSON),
@@ -93,7 +93,7 @@ handle_twitter_usertimeline(Args, Username) ->
     spawn(fun() ->
                   URL = "https://api.twitter.com/1/statuses/user_timeline.json?count=2&screen_name="++
                       edoc_lib:escape_uri(binary_to_list(Username)),
-                  case httpc:request(URL) of
+                  case idler_helpers:http_get(URL) of
                       {error, _} -> ok;
                       {ok, {_, _, JSON}} -> 
                           {array, TwtList} = mochijson:decode(JSON),
@@ -115,7 +115,7 @@ get_usertimeline_tweet({struct, Twt}) ->
 get_tweet_by_id(Args, ID, Pid) ->
     URL = "https://api.twitter.com/1/statuses/show.json?id="++binary_to_list(ID),
     spawn(fun() ->
-                  case httpc:request(URL) of
+                  case idler_helpers:http_get(URL) of
                       {error, _} -> ok;
                       {ok, {_, _, JSON}} ->
                           TweetStruct = mochijson:decode(JSON),
