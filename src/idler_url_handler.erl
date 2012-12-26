@@ -91,9 +91,10 @@ export_xml_for_url(URL, NickName) ->
                                     T -> binary_to_list(T)
                                 end,
                                 case Title of
-                                    <<"Picture">> -> "<img src=\""++binary_to_list(URL)++
-                                                         "\" alt=\""++"Posted by "++Nick++
-                                                         " in #YFL on "++idler_rss:utcnow()++"\"/>";
+                                    <<"Picture">> -> 
+                                        AltTitle = "Posted by "++Nick++" in #YFL on "++idler_rss:utcnow(),
+                                        "<img src=\""++binary_to_list(URL)++
+                                                         "\" alt=\""++AltTitle++"\" title=\""++AltTitle++"\" />";
                                     <<"Video">> -> "<video src=\""++URL++"\" controls/>";
                                     _ -> "Posted by "++Nick++" in #YFL on "++idler_rss:utcnow()
                                 end,
@@ -137,16 +138,18 @@ get_page_title(Url) ->
             case Resp of
                 {ok, {_, _, Contents}} ->
                     {<<"html">>,_,Tags} = mochiweb_html:parse(Contents),
-                    [{<<"head">>,_,HeadTags}] = lists:filter(
-                                                  fun(X) -> case X of
-                                                                {<<"head">>,_,_} -> true;
-                                                                _ -> false
-                                                            end end, Tags),
-                    [{<<"title">>,_,TitleList}] = lists:filter(
-                                                    fun(X) -> case X of
-                                                                  {<<"title">>,_,_} -> true;
-                                                                  _ -> false
-                                                              end end, HeadTags),
+                    [{<<"head">>,_,HeadTags}] = 
+                        lists:filter(
+                          fun(X) -> case X of
+                                        {<<"head">>,_,_} -> true;
+                                        _ -> false
+                                    end end, Tags),
+                    [{<<"title">>,_,TitleList}] = 
+                        lists:filter(
+                          fun(X) -> case X of
+                                        {<<"title">>,_,_} -> true;
+                                        _ -> false
+                                    end end, HeadTags),
                     io:format("~p~n",[TitleList]),
                     hd(TitleList);
                 _ -> none
