@@ -53,7 +53,7 @@ send_msg(Pid, Prefix, Command, Arguments, Tail) ->
 -spec reply(Pid :: pid(), Arguments :: [binary()], Tail :: binary()) -> ok.
 reply(Pid, Arguments, Tail) ->
 %%    send_msg(Pid, <<>>, <<"PRIVMSG">>, Arguments, Tail).
-    send_msg(Pid, <<>>, <<"CTCP">>, Arguments, <<1, "ACTION -> ", Tail/binary, 1>>).
+    send_msg(Pid, <<>>, <<"CTCP">>, Arguments, <<"ACTION -> ", Tail/binary>>).
 
 send_raw(Pid, Line) ->
     gen_server:cast(Pid, {send_raw, Line}).
